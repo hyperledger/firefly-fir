@@ -68,22 +68,46 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
 ```json
 {
   "id": "19924a2c-fdf5-460d-ac3b-a8e377b4f553",
-  "name": "Simple Storage",
+  "name": "simple-storage",
   "version": "v0.1.0",
   "ffabi": {
     "methods": [
       {
         "name": "set",
-        "params": ["int"],
+        "params": [
+          {
+            "name": "newValue",
+            "type": "int"
+          }
+        ],
         "returns": []
       },
       {
         "name": "get",
         "params": [],
-        "returns": ["int"]
+        "returns": [
+          {
+            "name": "output",
+            "type": "int"
+          }
+        ]
       }
     ],
-    "events": []
+    "events": [
+      {
+        "name": "Changed",
+        "params": [
+          {
+            "name": "from",
+            "type": "string"
+          },
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -102,11 +126,11 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
 
 ```json
 {
-  "name": "MySimpleStorage",
-  "contractDefinition": {
-    "name": "Simple Storage",
-    "version": "v0.1.0"
-  }
+    "name": "myStorage",
+    "onChainLocation": "0xb00a83bbe11e74f31784736ec4428c3239464fb2",
+    "contractDefinition": {
+        "id": "19924a2c-fdf5-460d-ac3b-a8e377b4f553"
+    }
 }
 ```
 
@@ -114,28 +138,49 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
 
 ```json
 {
-  "id": "ee2b9f05-ea5d-4d03-a043-1d4df308d5f3",
-  "name": "MySimpleStorage",
-  "contractDefinition": {
-    "id": "19924a2c-fdf5-460d-ac3b-a8e377b4f553",
-    "name": "Simple Storage",
-    "version": "v0.1.0"
+    "id": "b3918b7f-f0d9-4724-9813-74f958d95957",
+    "namespace": "default",
+    "name": "simple-storage",
+    "version": "v0.1.0",
     "ffabi": {
-        "methods": [
-          {
-            "name": "set",
-            "params": ["int"],
-            "returns": []
-          },
-          {
-            "name": "get",
-            "params": [],
-            "returns": ["int"]
-          }
+        "Methods": [
+            {
+                "Name": "set",
+                "Params": [
+                    {
+                        "Name": "newValue",
+                        "Type": "int"
+                    }
+                ],
+                "Returns": []
+            },
+            {
+                "Name": "get",
+                "Params": [],
+                "Returns": [
+                    {
+                        "Name": "output",
+                        "Type": "int"
+                    }
+                ]
+            }
         ],
-        "events": []
-      }
-  }
+        "Events": [
+            {
+                "Name": "event1",
+                "Params": [
+                    {
+                        "Name": "_from",
+                        "Type": "string"
+                    },
+                    {
+                        "Name": "_value",
+                        "Type": "int"
+                    }
+                ]
+            }
+        ]
+    }
 }
 ```
 
