@@ -30,157 +30,201 @@ Many FireFly users have requested the ability to interact with custom smart cont
 
 With this enhancement, FireFly exposes a simple set of APIs to work with custom smart contracts. Given a smart contract on a blockchain, these APIs will allow an end user to:
 
-1. Describe the interface of the smart contract including its functions and events in a standardized format. This format is currently called an FFABI, but will likely change. This is called a **Contract Definition**. Contract definitions require a name and version that is unique within their namespace.
+1. Directly invoke or query a smart contract while providing all required schema and type information in a single request.
 
-   `POST /namespaces/{ns}/contracts/definitions`
+   | Method | Endpoint                            | Description                                  |
+   | ------ | ----------------------------------- | -------------------------------------------- |
+   | `POST` | `/namespaces/{ns}/contracts/invoke` | Invoke a method on a smart contract          |
+   | `POST` | `/namespaces/{ns}/contracts/query`  | Query a smart contract (read-only operation) |
+   | `GET`  | `/namespaces/{ns}/contracts/query`  | Query a smart contract (read-only operation) |
 
-2. Tell FireFly where a specific instance of this contract exists on-chain. This is called a **Contract Instance**. Optionally, allow the user to give the specific instance a friendly name.
+1. Subscribe to events emitted from smart contracts while providing all required schema and type information in a single request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
 
-   `POST /namespaces/{ns}/contracts/instances`
+   | Method   | Endpoint                                        | Description           |
+   | -------- | ----------------------------------------------- | --------------------- |
+   | `POST`   | `/namespaces/{ns}/contracts/subscriptions`      | Create a subscription |
+   | `GET`    | `/namespaces/{ns}/contracts/subscriptions`      | List subscriptions    |
+   | `GET`    | `/namespaces/{ns}/contracts/subscriptions/{id}` | Get a subscription    |
+   | `DELETE` | `/namespaces/{ns}/contracts/subscriptions/{id}` | Delete a subscription |
 
-3. Invoke functions on the contract instance while validating input
+1. Describe the interface of the smart contract including its functions and events in a standardized format. This format an FFI (FireFly Interface). Contract interfaces require a name and version that is unique within their namespace. When a new contract is defined, it is also sent as a broadcast to other members of the network.
 
-   `POST /namespaces/{ns}/contracts/instances/{id}/{method}`
+   | Method | Endpoint                                     | Description                                                                            |
+   | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
+   | `POST` | `/namespaces/{ns}/contracts/interfaces`      | Define a new smart contract interface and broadcast it to other members of the network |
+   | `GET`  | `/namespaces/{ns}/contracts/interfaces`      | List contract interfaces                                                               |
+   | `GET`  | `/namespaces/{ns}/contracts/interfaces/{id}` | Get a contract interface                                                               |
 
-4. Subscribe to events emitted from the contract instance
-5. Receive these events over FireFly's existing event bus
+1. Invoke or query a smart contract that implements a given interface while providing its location information (contract address or channel/chaincode, etc.) inline in the request
 
-## New API Endpoints
+   | Method | Endpoint                                            | Description                                  |
+   | ------ | --------------------------------------------------- | -------------------------------------------- |
+   | `POST` | `/namespaces/{ns}/contracts/interfaces/{id}/invoke` | Invoke a method on a smart contract          |
+   | `POST` | `/namespaces/{ns}/contracts/interfaces/{id}/query`  | Query a smart contract (read-only operation) |
+   | `GET`  | `/namespaces/{ns}/contracts/interfaces/{id}/query`  | Query a smart contract (read-only operation) |
 
-![New API Endpoints](../images/0000-contracts-endpoints.png)
+1. Subscribe to events emitted from a smart contract that implements a given interface while providing its location information (contract address or channel/chaincode, etc.) inline in the request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
 
-> Note: A more detailed reference for expected request bodies and responses is required in this section
+   | Method   | Endpoint                                                        | Description           |
+   | -------- | --------------------------------------------------------------- | --------------------- |
+   | `POST`   | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions`      | Create a subscription |
+   | `GET`    | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions`      | List subscriptions    |
+   | `GET`    | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions/{id}` | Get a subscription    |
+   | `DELETE` | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions/{id}` | Delete a subscription |
+
+1. Register a set of named API endpoints that allow a user to interact with a defined smart contract interface. This will also generate an OpenAPI document that describes how to use each endpoint. Optionally, the location information (contract address or channel/chaincode, etc.) of the contract can part of the API registration request, or it can be specified inline with each invoke/query request.
+
+   | Method   | Endpoint                                                    | Description                                                       |
+   | -------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
+   | `POST`   | `/namespaces/{ns}/contracts/apis`                           | Create a named API                                                |
+   | `GET`    | `/namespaces/{ns}/contracts/apis`                           | List named APIs                                                   |
+   | `GET`    | `/namespaces/{ns}/contracts/apis/{name}`                    | Get a named API                                                   |
+   | `PUT`    | `/namespaces/{ns}/contracts/apis/{name}`                    | Update a named API - can be used to update the contract interface |
+   | `POST`   | `/namespaces/{ns}/contracts/invoke/{methodName}`            | Invoke a method on a smart contract                               |
+   | `POST`   | `/namespaces/{ns}/contracts/query/{methodName}`             | Query a smart contract (read-only operation)                      |
+   | `GET`    | `/namespaces/{ns}/contracts/query/{methodName}`             | Query a smart contract (read-only operation)                      |
+   | `POST`   | `/namespaces/{ns}/contracts/apis/{name}/subscriptions`      | Create a subscription                                             |
+   | `GET`    | `/namespaces/{ns}/contracts/apis/{name}/subscriptions`      | List subscriptions                                                |
+   | `GET`    | `/namespaces/{ns}/contracts/apis/{name}/subscriptions/{id}` | Get a subscription                                                |
+   | `DELETE` | `/namespaces/{ns}/contracts/apis/{name}/subscriptions/{id}` | Delete a subscription                                             |
 
 # Reference-level explanation
 
 [reference-level-explanation]: #reference-level-explanation
 
-## Contract Definitions
+## Contract Interfaces
 
-- Describe the interface of a smart contract on-chain to enable FireFly to create an API to interact with them
+- Describe the interface of a smart contract to enable FireFly to create an API to interact with them
 - Are namespaced, like most other FireFly resources
 - Must have a unique name and version combination within their namespace
-- When a contract definition is created in FireFly, it is broadcasted to all other members in the network, via the existing broadcast function of FireFly. It is broadcasted on the same namespace that it is created in.
-- Will be stored in a new table in the FireFly Core database called `contract_definitions` for fast access during runtime
+- When a contract interface is created in FireFly, it is broadcasted to all other members in the network, via the existing broadcast function of FireFly. It is broadcasted on the same namespace that it is created in.
+- Will be stored in a new table in the FireFly Core database called `contractinterfaces` for fast access during runtime
+- Each of its methods and params (or returns) are also stored in their own tables `contractmethods` and `contractparams` respectively, for fast access during runtime.
 
 ### Proposed JSON representation
 
 ```json
 {
-  "id": "19924a2c-fdf5-460d-ac3b-a8e377b4f553",
   "name": "simple-storage",
   "version": "v0.1.0",
-  "ffabi": {
-    "methods": [
-      {
-        "name": "set",
-        "params": [
-          {
-            "name": "newValue",
-            "type": "int"
-          }
-        ],
-        "returns": []
-      },
-      {
-        "name": "get",
-        "params": [],
-        "returns": [
-          {
-            "name": "output",
-            "type": "int"
-          }
-        ]
-      }
-    ],
-    "events": [
-      {
-        "name": "Changed",
-        "params": [
-          {
-            "name": "from",
-            "type": "string"
-          },
-          {
-            "name": "value",
-            "type": "int"
-          }
-        ]
-      }
-    ]
-  }
+  "methods": [
+    {
+      "name": "set",
+      "params": [
+        {
+          "name": "newValue",
+          "type": "int"
+        }
+      ],
+      "returns": []
+    },
+    {
+      "name": "get",
+      "params": [],
+      "returns": [
+        {
+          "name": "output",
+          "type": "int"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "Changed",
+      "params": [
+        {
+          "name": "from",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "int"
+        }
+      ]
+    }
+  ]
 }
 ```
 
-## Contract Instances
+### Retrieving / listing contract interfaces
+
+By default, the entire interface is not listed when the interface is fetched by the API. An optional query parameter `?interface=true` can be included to list the full interface.
+
+```json
+[
+  {
+    "id": "933db039-8240-4bd7-b262-1a92f13ed0a2",
+    "namespace": "default",
+    "name": "simple-storage",
+    "version": "v0.1.0"
+  }
+]
+```
+
+## Contract API
 
 - Points to a specific instance of a smart contract on-chain
 - Are namespaced, like most other FireFly resources
-- Can be given a friendly name if the name is unique within the namespace
-- When a contract instance is created in FireFly, it is broadcasted to all other members in the network, via the existing broadcast function of FireFly. It is broadcasted on the same namespace that it is created in.
-- Will be stored in a new table in the FireFly Core database called `contract_instances` for fast access during runtime.
+- Is assigned a friendly name that must be unique within the namespace. This will be used as part of the API path
+- When a contract API is created in FireFly, it is broadcasted to all other members in the network, via the existing broadcast function of FireFly. It is broadcasted on the same namespace that it is created in.
+- Will be stored in a new table in the FireFly Core database called `contractapis` for fast access during runtime.
 
 ### Proposed JSON representation
 
-### Creating a contract instance
+### Creating a contract API
 
 ```json
 {
-    "name": "myStorage",
-    "onChainLocation": "0xb00a83bbe11e74f31784736ec4428c3239464fb2",
-    "contractDefinition": {
-        "id": "19924a2c-fdf5-460d-ac3b-a8e377b4f553"
-    }
+  "contract": {
+    "id": "933db039-8240-4bd7-b262-1a92f13ed0a2"
+  },
+  "location": {
+    "address": "0xf6cdd9fdb855097edcfb45e1caba980f0e1517bb"
+  },
+  "name": "simple-storage"
 }
 ```
 
 ### Looking up a contract instance
 
 ```json
-{
-    "id": "b3918b7f-f0d9-4724-9813-74f958d95957",
+[
+  {
+    "id": "33bcdf7e-3fbe-4ea9-99db-4219f4034242",
     "namespace": "default",
-    "name": "simple-storage",
-    "version": "v0.1.0",
-    "ffabi": {
-        "Methods": [
-            {
-                "Name": "set",
-                "Params": [
-                    {
-                        "Name": "newValue",
-                        "Type": "int"
-                    }
-                ],
-                "Returns": []
-            },
-            {
-                "Name": "get",
-                "Params": [],
-                "Returns": [
-                    {
-                        "Name": "output",
-                        "Type": "int"
-                    }
-                ]
-            }
-        ],
-        "Events": [
-            {
-                "Name": "event1",
-                "Params": [
-                    {
-                        "Name": "_from",
-                        "Type": "string"
-                    },
-                    {
-                        "Name": "_value",
-                        "Type": "int"
-                    }
-                ]
-            }
-        ]
-    }
+    "contract": {
+      "id": "933db039-8240-4bd7-b262-1a92f13ed0a2"
+    },
+    "ledger": null,
+    "location": {
+      "address": "0xf6cdd9fdb855097edcfb45e1caba980f0e1517bb"
+    },
+    "name": "simple-storage"
+  }
+]
+```
+
+### Invoking a smart contract
+
+```json
+{
+  "location": {
+    "address": "0xf6cdd9fdb855097edcfb45e1caba980f0e1517bb"
+  },
+  "method": {
+    "name": "set",
+    "params": [
+      {
+        "name": "newValue",
+        "type": "int"
+      }
+    ],
+    "returns": []
+  },
+  "params": {
+    "newValue": 120
+  }
 }
 ```
 
@@ -217,11 +261,12 @@ The Ethereum ABI format may inform part of the design for FireFly's Contract Def
 
 [dependencies]: #dependencies
 
--
+- Ethconnect subscription API improvements
+- Fabconnect query API
 
 # Unresolved questions
 
 [unresolved]: #unresolved-questions
 
-- Final name of FFABI?
-- Format of FFABI?
+- Nested object types in FFI
+- Arrays of types in FFI
