@@ -14,7 +14,7 @@ nav_order: 0
 
 [summary]: #summary
 
-The Custom On-Chain Logic introduces a new set of unified APIs for FireFly to invoke any smart contract and subscribe to events emitted from that contract. It also introduces a consistent way to describe the interface of a smart contract, including its functions, parameters, and events, in a way that is abstracted from a specific blockchain implementation.
+The Custom On-Chain Logic introduces a new set of unified APIs for FireFly to invoke any smart contract and subscribe to events emitted from that contract. It also introduces a consistent way to describe the interface of a smart contract, including its functions, parameters, return values, and events, in a way that is mostly abstracted from a specific blockchain implementation.
 
 > Note: Deployment of smart contracts is not in scope of this improvement request.
 
@@ -22,7 +22,7 @@ The Custom On-Chain Logic introduces a new set of unified APIs for FireFly to in
 
 [motivation]: #motivation
 
-Many FireFly users have requested the ability to interact with custom smart contracts through FireFly. This is one of the major features planned for v1.0. Right now, custom smart contracts can be invoked directly through FireFly's blockchain connectors, but these APIs are specific to each blockchain connector. Today, there is no way to change blockchain implementations without also changing API calls to interact with a custom contract. The goal of this feature is to have a set of APIs in the FireFly Core which allow users to swap out FireFly plugins such as the blockchain connector, without needing to change any API calls made to FireFly's API.
+Many FireFly users have requested the ability to interact with custom smart contracts through FireFly. This is one of the major features planned for v1.0. Right now, custom smart contracts can be invoked directly through FireFly's blockchain connectors, but these APIs are specific to each blockchain connector. Today, there is no way to change blockchain implementations without also significantly changing API calls to interact with a custom contract. The goal of this feature is to have a set of APIs in the FireFly Core which allow users to swap out FireFly plugins such as the blockchain connector, without needing to change any API calls made to FireFly's API.
 
 # Guide-level explanation
 
@@ -30,7 +30,7 @@ Many FireFly users have requested the ability to interact with custom smart cont
 
 With this enhancement, FireFly exposes a simple set of APIs to work with custom smart contracts. Given a smart contract on a blockchain, these APIs will allow an end user to:
 
-1. Directly invoke or query a smart contract while providing all required schema and type information in a single request.
+1. Directly invoke or query a smart contract while providing all required schema and location / ledger information in a single request.
 
    | Method | Endpoint                            | Description                                  |
    | ------ | ----------------------------------- | -------------------------------------------- |
@@ -38,7 +38,7 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
    | `POST` | `/namespaces/{ns}/contracts/query`  | Query a smart contract (read-only operation) |
    | `GET`  | `/namespaces/{ns}/contracts/query`  | Query a smart contract (read-only operation) |
 
-1. Subscribe to events emitted from smart contracts while providing all required schema and type information in a single request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
+1. Subscribe to events emitted from smart contracts while providing all required schema and location / ledger information in a single request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
 
    | Method   | Endpoint                                        | Description           |
    | -------- | ----------------------------------------------- | --------------------- |
@@ -55,7 +55,7 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
    | `GET`  | `/namespaces/{ns}/contracts/interfaces`      | List contract interfaces                                                               |
    | `GET`  | `/namespaces/{ns}/contracts/interfaces/{id}` | Get a contract interface                                                               |
 
-1. Invoke or query a smart contract that implements a given interface while providing its location information (contract address or channel/chaincode, etc.) inline in the request
+1. Invoke or query a smart contract that implements a given interface while providing its location / ledger information (contract address or channel / chaincode, etc.) inline in the request
 
    | Method | Endpoint                                            | Description                                  |
    | ------ | --------------------------------------------------- | -------------------------------------------- |
@@ -63,7 +63,7 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
    | `POST` | `/namespaces/{ns}/contracts/interfaces/{id}/query`  | Query a smart contract (read-only operation) |
    | `GET`  | `/namespaces/{ns}/contracts/interfaces/{id}/query`  | Query a smart contract (read-only operation) |
 
-1. Subscribe to events emitted from a smart contract that implements a given interface while providing its location information (contract address or channel/chaincode, etc.) inline in the request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
+1. Subscribe to events emitted from a smart contract that implements a given interface while providing its location / ledger information (contract address or channel / chaincode, etc.) inline in the request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
 
    | Method   | Endpoint                                                        | Description           |
    | -------- | --------------------------------------------------------------- | --------------------- |
@@ -72,7 +72,7 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
    | `GET`    | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions/{id}` | Get a subscription    |
    | `DELETE` | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions/{id}` | Delete a subscription |
 
-1. Register a set of named API endpoints that allow a user to interact with a defined smart contract interface. This will also generate an OpenAPI document that describes how to use each endpoint. Optionally, the location information (contract address or channel/chaincode, etc.) of the contract can part of the API registration request, or it can be specified inline with each invoke/query request.
+1. Register a set of named API endpoints that allow a user to interact with a defined smart contract interface. This will also generate an OpenAPI document that describes how to use each endpoint. Optionally, the location and ledger information (contract address or channel / chaincode, etc.) of the contract can part of the API registration request, or it can be specified inline with each invoke/query request.
 
    | Method   | Endpoint                                                    | Description                                                       |
    | -------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -113,7 +113,10 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
       "params": [
         {
           "name": "newValue",
-          "type": "int"
+          "type": "integer",
+          "details": {
+            "type": "uint256"
+          }
         }
       ],
       "returns": []
@@ -124,7 +127,10 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
       "returns": [
         {
           "name": "output",
-          "type": "int"
+          "type": "integer",
+          "details": {
+            "type": "uint256"
+          }
         }
       ]
     }
@@ -135,11 +141,17 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
       "params": [
         {
           "name": "from",
-          "type": "string"
+          "type": "string",
+          "details": {
+            "type": "address"
+          }
         },
         {
           "name": "value",
-          "type": "int"
+          "type": "integer",
+          "details": {
+            "type": "uint256"
+          }
         }
       ]
     }
@@ -182,9 +194,14 @@ By default, the entire interface is not listed when the interface is fetched by 
   "location": {
     "address": "0xf6cdd9fdb855097edcfb45e1caba980f0e1517bb"
   },
+  "ledger": {
+    ...
+  },
   "name": "simple-storage"
 }
 ```
+
+> **NOTE**: The `ledger` field is optionally present anywhere an on-chain location is being referenced. This field has been added here for future compatibility when multi-ledger support is fully implemented. The value of the `ledger` field is passed to the blockchain plugin as a byte array so each blockchain plugin can have a specific schema within the `ledger` field. Currently, the value is simply stored, but not used.
 
 ### Looking up a contract instance
 
@@ -196,7 +213,9 @@ By default, the entire interface is not listed when the interface is fetched by 
     "contract": {
       "id": "933db039-8240-4bd7-b262-1a92f13ed0a2"
     },
-    "ledger": null,
+    "ledger": {
+      ...
+    },
     "location": {
       "address": "0xf6cdd9fdb855097edcfb45e1caba980f0e1517bb"
     },
@@ -232,41 +251,52 @@ By default, the entire interface is not listed when the interface is fetched by 
 
 [drawbacks]: #drawbacks
 
-There are no known drawbacks at this time.
+While there are many advantages to having this functionality, there are not many drawbacks. Other than time and complexity to implement, there should be no negative impact on existing functionality in FireFly.
 
 # Rationale and alternatives
 
 [alternatives]: #alternatives
 
-- Why is this design the best in the space of possible designs?
-- What other designs have been considered and what is the rationale for not
-  choosing them?
-- What is the impact of not doing this?
+This design was chosen because it offers end users the most flexibility in interacting with their custom smart contracts. During the design and brainstorming process, several different ways of invoking a function on a smart contract were considered, and this design enables all of the following:
+
+- Directly invoking a smart contract while passing the schema and contract location / ledger inline with the request
+- Uploading an FFI document describing the interface of a custom smart contract
+  - Invoking methods on that smart contract while specifying the contract location / ledger inline with the request
+- Registering a named API path for using an defined contract interface
+  - Optionally specifying a contract location / ledger when creating the named API, or inline with each function invocation request
+  - Auto-generated OpenAPI3 YAML documentation for the generated API
+  - Allowing the API to be updated to point to a new FFI in the future
 
 # Prior art
 
 [prior-art]: #prior-art
 
-The Ethereum ABI format may inform part of the design for FireFly's Contract Definition format.
+The Ethereum ABI format has strongly influenced the design of the FFI format. This should make the code fairly simple which will translate an existing ABI into an FFI.
 
 # Testing
 
 [testing]: #testing
 
-- What kinds of test development and execution will be required in order
-  to validate this proposal, beyond the usual mandatory unit tests?
-- List integration test scenarios which will outline correctness of proposed functionality.
+A new suite of End-to-End tests needs to be included in this work. The suite should cover:
+
+- Directly invoking contracts
+- Subscribing to and receiving events for a direct invocation
+- Uploading a custom FFI
+- Invoking a method on that FFI
+- Subscribing to and receiving events for that FFI
+- Creating a named API that points to that FFI
+- Invoking a method on the named API
+- Subscribing to and receiving events for that named API
 
 # Dependencies
 
 [dependencies]: #dependencies
 
-- Ethconnect subscription API improvements
+- ~~Ethconnect subscription API improvements~~
 - Fabconnect query API
 
 # Unresolved questions
 
 [unresolved]: #unresolved-questions
 
-- Nested object types in FFI
-- Arrays of types in FFI
+- No known unresolved questions at this time
