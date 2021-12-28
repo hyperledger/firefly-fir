@@ -74,19 +74,16 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
 
 1. Register a set of named API endpoints that allow a user to interact with a defined smart contract interface. This will also generate an OpenAPI document that describes how to use each endpoint. Optionally, the location and ledger information (contract address or channel / chaincode, etc.) of the contract can part of the API registration request, or it can be specified inline with each invoke/query request.
 
-   | Method   | Endpoint                                                    | Description                                                       |
-   | -------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
-   | `POST`   | `/namespaces/{ns}/contracts/apis`                           | Create a named API                                                |
-   | `GET`    | `/namespaces/{ns}/contracts/apis`                           | List named APIs                                                   |
-   | `GET`    | `/namespaces/{ns}/contracts/apis/{name}`                    | Get a named API                                                   |
-   | `PUT`    | `/namespaces/{ns}/contracts/apis/{name}`                    | Update a named API - can be used to update the contract interface |
-   | `POST`   | `/namespaces/{ns}/contracts/invoke/{methodName}`            | Invoke a method on a smart contract                               |
-   | `POST`   | `/namespaces/{ns}/contracts/query/{methodName}`             | Query a smart contract (read-only operation)                      |
-   | `GET`    | `/namespaces/{ns}/contracts/query/{methodName}`             | Query a smart contract (read-only operation)                      |
-   | `POST`   | `/namespaces/{ns}/contracts/apis/{name}/subscriptions`      | Create a subscription                                             |
-   | `GET`    | `/namespaces/{ns}/contracts/apis/{name}/subscriptions`      | List subscriptions                                                |
-   | `GET`    | `/namespaces/{ns}/contracts/apis/{name}/subscriptions/{id}` | Get a subscription                                                |
-   | `DELETE` | `/namespaces/{ns}/contracts/apis/{name}/subscriptions/{id}` | Delete a subscription                                             |
+   | Method   | Endpoint                                          | Description                                                                          |
+   | -------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+   | `POST`   | `/namespaces/{ns}/apis`                           | Create a named API                                                                   |
+   | `GET`    | `/namespaces/{ns}/apis`                           | List named APIs                                                                      |
+   | `GET`    | `/namespaces/{ns}/apis/{name}`                    | Get a named API                                                                      |
+   | `PUT`    | `/namespaces/{ns}/apis/{name}`                    | Update a named API - can be used to update the contract interface this API points to |
+   | `POST`   | `/namespaces/{ns}/apis/{name}/subscriptions`      | Create a subscription on a named API                                                 |
+   | `GET`    | `/namespaces/{ns}/apis/{name}/subscriptions`      | List subscriptions on a named API                                                    |
+   | `GET`    | `/namespaces/{ns}/apis/{name}/subscriptions/{id}` | Get a subscription on a named API                                                    |
+   | `DELETE` | `/namespaces/{ns}/apis/{name}/subscriptions/{id}` | Delete a subscription on a named API                                                 |
 
 # Reference-level explanation
 
