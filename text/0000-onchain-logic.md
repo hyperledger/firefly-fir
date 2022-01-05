@@ -38,14 +38,14 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
    | `POST` | `/namespaces/{ns}/contracts/query`  | Query a smart contract (read-only operation) |
    | `GET`  | `/namespaces/{ns}/contracts/query`  | Query a smart contract (read-only operation) |
 
-1. Subscribe to events emitted from smart contracts while providing all required schema and location / ledger information in a single request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
+1. Subscribe to events emitted from smart contracts while providing all required schema and location / ledger information in a single request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well. If the subscription is for an event emitted by a contract described by a Contract Interface that has already been registered, the Contract Interface may be referenced in the request to create a subscription, rather than defining the entire event schema inline.
 
-   | Method   | Endpoint                                        | Description           |
-   | -------- | ----------------------------------------------- | --------------------- |
-   | `POST`   | `/namespaces/{ns}/contracts/subscriptions`      | Create a subscription |
-   | `GET`    | `/namespaces/{ns}/contracts/subscriptions`      | List subscriptions    |
-   | `GET`    | `/namespaces/{ns}/contracts/subscriptions/{id}` | Get a subscription    |
-   | `DELETE` | `/namespaces/{ns}/contracts/subscriptions/{id}` | Delete a subscription |
+   | Method   | Endpoint                                              | Description           |
+   | -------- | ----------------------------------------------------- | --------------------- |
+   | `POST`   | `/namespaces/{ns}/contracts/subscriptions`            | Create a subscription |
+   | `GET`    | `/namespaces/{ns}/contracts/subscriptions`            | List subscriptions    |
+   | `GET`    | `/namespaces/{ns}/contracts/subscriptions/{nameOrId}` | Get a subscription    |
+   | `DELETE` | `/namespaces/{ns}/contracts/subscriptions/{nameOrId}` | Delete a subscription |
 
 1. Describe the interface of the smart contract including its functions and events in a standardized format. This format an FFI (FireFly Interface). Contract interfaces require a name and version that is unique within their namespace. When a new contract is defined, it is also sent as a broadcast to other members of the network.
 
@@ -57,33 +57,29 @@ With this enhancement, FireFly exposes a simple set of APIs to work with custom 
 
 1. Invoke or query a smart contract that implements a given interface while providing its location / ledger information (contract address or channel / chaincode, etc.) inline in the request
 
-   | Method | Endpoint                                            | Description                                  |
-   | ------ | --------------------------------------------------- | -------------------------------------------- |
-   | `POST` | `/namespaces/{ns}/contracts/interfaces/{id}/invoke` | Invoke a method on a smart contract          |
-   | `POST` | `/namespaces/{ns}/contracts/interfaces/{id}/query`  | Query a smart contract (read-only operation) |
-   | `GET`  | `/namespaces/{ns}/contracts/interfaces/{id}/query`  | Query a smart contract (read-only operation) |
-
-1. Subscribe to events emitted from a smart contract that implements a given interface while providing its location / ledger information (contract address or channel / chaincode, etc.) inline in the request. Standard CRUD style REST operations can be used on this endpoint to manage subscriptions as well.
-
-   | Method   | Endpoint                                                        | Description           |
-   | -------- | --------------------------------------------------------------- | --------------------- |
-   | `POST`   | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions`      | Create a subscription |
-   | `GET`    | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions`      | List subscriptions    |
-   | `GET`    | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions/{id}` | Get a subscription    |
-   | `DELETE` | `/namespaces/{ns}/contracts/interfaces/{id}/subscriptions/{id}` | Delete a subscription |
+   | Method | Endpoint                                                         | Description                                  |
+   | ------ | ---------------------------------------------------------------- | -------------------------------------------- |
+   | `POST` | `/namespaces/{ns}/contracts/interfaces/{id}/invoke/{methodPath}` | Invoke a method on a smart contract          |
+   | `POST` | `/namespaces/{ns}/contracts/interfaces/{id}/query/{methodPath}`  | Query a smart contract (read-only operation) |
+   | `GET`  | `/namespaces/{ns}/contracts/interfaces/{id}/query/{methodPath}`  | Query a smart contract (read-only operation) |
 
 1. Register a set of named API endpoints that allow a user to interact with a defined smart contract interface. This will also generate an OpenAPI document that describes how to use each endpoint. Optionally, the location and ledger information (contract address or channel / chaincode, etc.) of the contract can part of the API registration request, or it can be specified inline with each invoke/query request.
 
-   | Method   | Endpoint                                          | Description                                                                          |
+   | Method | Endpoint                                           | Description                                                                          |
+   | ------ | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+   | `POST` | `/namespaces/{ns}/apis`                            | Create a named API                                                                   |
+   | `GET`  | `/namespaces/{ns}/apis`                            | List named APIs                                                                      |
+   | `GET`  | `/namespaces/{ns}/apis/{name}`                     | Get a named API                                                                      |
+   | `PUT`  | `/namespaces/{ns}/apis/{name}`                     | Update a named API - can be used to update the contract interface this API points to |
+   | `POST` | `/namespaces/{ns}/apis/{name}/invoke/{methodPath}` | Invoke a method on a smart contract                                                  |
+   | `POST` | `/namespaces/{ns}/apis/{name}/query/{methodPath}`  | Query a smart contract (read-only operation)                                         |
+   | `GET`  | `/namespaces/{ns}/apis/{name}/query/{methodPath}`  | Query a smart contract (read-only operation)                                         |
+
+1. Query the API for events related to custom smart contracts.
+   | Method | Endpoint | Description |
    | -------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ |
-   | `POST`   | `/namespaces/{ns}/apis`                           | Create a named API                                                                   |
-   | `GET`    | `/namespaces/{ns}/apis`                           | List named APIs                                                                      |
-   | `GET`    | `/namespaces/{ns}/apis/{name}`                    | Get a named API                                                                      |
-   | `PUT`    | `/namespaces/{ns}/apis/{name}`                    | Update a named API - can be used to update the contract interface this API points to |
-   | `POST`   | `/namespaces/{ns}/apis/{name}/subscriptions`      | Create a subscription on a named API                                                 |
-   | `GET`    | `/namespaces/{ns}/apis/{name}/subscriptions`      | List subscriptions on a named API                                                    |
-   | `GET`    | `/namespaces/{ns}/apis/{name}/subscriptions/{id}` | Get a subscription on a named API                                                    |
-   | `DELETE` | `/namespaces/{ns}/apis/{name}/subscriptions/{id}` | Delete a subscription on a named API                                                 |
+   | `GET` | `/namespaces/{ns}/contracts/events` | List contract events |
+   | `GET` | `/namespaces/{ns}/contracts/events/{id}` | Get a contract event by ID |
 
 # Reference-level explanation
 
@@ -238,11 +234,24 @@ By default, the entire interface is not listed when the interface is fetched by 
     ],
     "returns": []
   },
-  "params": {
+  "input": {
     "newValue": 120
   }
 }
 ```
+
+### FireFly Contract Interface Types
+
+The FFI format defines several straightforward types that can be used in custom smart contracts. They are as follows:
+
+- `boolean`
+- `integer`
+- `string`
+- `byte[]` (Base64 encoded string. Alternatively, hex encoded string with a `0x` prefix)
+- Arrays of any of these types
+- Objects of any of these types
+
+FireFly will perform basic type checking to make sure the input provided when invoking a contract function can safely be mapped to the FireFly type specified in the FFI. For example, if an FFI defines a function that takes an `integer`, and someone attempts to invoke that function via FireFly's API, if they pass in the JSON `number` of `0.1`, FireFly will reject the request. `0.1` cannot be converted to an integer without loss in precision, so the request will be rejected.
 
 # Drawbacks
 
