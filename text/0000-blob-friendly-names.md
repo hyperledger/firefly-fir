@@ -6,7 +6,7 @@ nav_order: 3
 
 - Feature Name: Blob Friendly Names
 - Start Date: 2021-01-04
-- FIR PR: (leave this empty)
+- FIR PR: https://github.com/hyperledger/firefly/pull/381
 - FireFly Component: Core
 - FireFly Issue: (leave this empty)
 
@@ -62,7 +62,10 @@ Note that the `autometa`form-data upload field on `POST` will automatically
 set the `value.filename` to be per the upload.
 
 During download the `blob.size` as well as the `blob.hash` can be checked during
-the download verification.
+the download verification. For convenience two new headers are provided on the blob download
+(noting the caller might already have the Data object in hand and not need these):
+- `x-ff-blob-size` - should match the content length of the following HTTP byte stream
+- `x-ff-blob-hash-sha256` - the blob hash
 
 Previous to this FIR, the `value.size` was calculated by `autometa`, and this no
 longer makes sense - as it is not validated to be correct.
