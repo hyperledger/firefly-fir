@@ -5,6 +5,19 @@ nav_order: 2
 ---
 # Hyperledger FireFly FIR Process
 
+## TL/DR
+
+If you want to implement a new FireFly feature, create a PR to this repo copying
+[0000-template.md](0000-template.md) to `text/0000-short-feature-name.md`, and filling it out.
+
+Your choice whether you start the process before, during, or after you start coding.
+
+The community doesn't want to put you off, or slow you down. We just want to keep the community
+informed, and provide an inclusive way to let the community provide input before new features
+are released.
+
+## Introduction
+
 Many changes, including bug fixes and documentation improvements can be
 implemented and reviewed via the normal [GitHub pull request workflow](https://guides.github.com/introduction/flow/).
 
