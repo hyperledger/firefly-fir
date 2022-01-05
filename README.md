@@ -5,7 +5,7 @@ nav_order: 2
 ---
 # Hyperledger FireFly FIR Process
 
-## TL/DR
+## TL;DR
 
 If you want to implement a new FireFly feature, create a PR to this repo copying
 [0000-template.md](0000-template.md) to `text/0000-short-feature-name.md`, and filling it out.
