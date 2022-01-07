@@ -86,7 +86,7 @@ behavior.
 |----------|------------------------------------|
 | `!`      | Not - negates the match            |
 | `:`      | Case insensitive                   |
-| `;`      | Treat empty match string as null   |
+| `?`      | Treat empty match string as null   |
 
 | Example      | Description                                |
 |--------------|--------------------------------------------|
@@ -100,8 +100,8 @@ behavior.
 | `$_cat`      | Ends with with "_cat"                      |
 | `!:^cats/`   | Does not start with "cats/", "CATs/" etc.  |
 | `!$-cat`     | Does not end with "-cat"                   |
-| `;=`         | Is null                                    |
-| `!;=`        | Is not null                                |
+| `?=`         | Is null                                    |
+| `!?=`        | Is not null                                |
 
 # Reference-level explanation
 [reference-level-explanation]: #reference-level-explanation
