@@ -61,11 +61,11 @@ perform against the match string.
 
 | Operator | Description                        |
 |----------|------------------------------------|
-| `=`    * | Equal                              |
+| `=`      | Equal                              |
 | (none)   | Equal (shortcut)                   |
-| `@`    * | Containing                         |
+| `@`      | Containing                         |
 | `^`      | Starts with                        |
-| `$`    * | Ends with                          |
+| `$`      | Ends with                          |
 | `<<`     | Less than                          |
 | `<`      | Less than (shortcut)               |
 | `<=`     | Less than or equal                 |
@@ -84,11 +84,9 @@ behavior.
 
 | Modifier | Description                        |
 |----------|------------------------------------|
-| `!`    * | Not - negates the match            |
-| `:`    * | Case insensitive                   |
-
-> [*] - these characters should technically be encoded in URL queries,
->       but in practice have been tested to function fine without encoding.
+| `!`      | Not - negates the match            |
+| `:`      | Case insensitive                   |
+| `;`      | Treat empty match string as null   |
 
 | Example      | Description                                |
 |--------------|--------------------------------------------|
@@ -102,6 +100,8 @@ behavior.
 | `$_cat`      | Ends with with "_cat"                      |
 | `!:^cats/`   | Does not start with "cats/", "CATs/" etc.  |
 | `!$-cat`     | Does not end with "-cat"                   |
+| `;=`         | Is null                                    |
+| `!;=`        | Is not null                                |
 
 # Reference-level explanation
 [reference-level-explanation]: #reference-level-explanation
