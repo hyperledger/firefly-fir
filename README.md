@@ -27,9 +27,7 @@ are released.
 ### Where are the rest of the instructions?
 
 You should find everything you need in the template. The maintainers favor discussion over
-formal process so come talk to us on Discord!
-
-> @nguyer - not sure how to invite people to discord. Process feels broken without that
+formal process so come talk to us in the [#firefly channel on Discord](https://discord.com/invite/nnQw2aGhX6)!
 
 ### Do I need a FIR for every improvement?
 
