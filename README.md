@@ -40,11 +40,11 @@ discussion with the maintainers is enough.
 
 ### Do I really have to go through a bunch of process, just to submit some code???
 
-We'd like to FIR process light weight enough, that it feels natural to raise one.
+We'd like the FIR process light eight enough that it feels natural to raise one.
 
-If it doesn't tell us, and we'll try and cut out the pain.
+If it doesn't, then please tell us and we'll try and cut out the pain.
 
-The benefit for you, is people get to hear about your work!
+It's a great way to let people get to hear about your work!
 
 New FIRs are automatically announced on the Discord to the community.
 
