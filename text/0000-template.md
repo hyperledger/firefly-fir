@@ -1,12 +1,10 @@
 ---
 layout: default
-title: FIR Template
+title: FIR-0000 # Please update this in your firefly-fir PR once you're assigned a PR number by Github
 nav_order: 3
 ---
 
 - Feature Name: (fill me in with a unique identifier, my_awesome_feature)
-- Start Date: (fill me in with today's date, YYYY-MM-DD)
-- FIR PR: (leave this empty)
 - FireFly Component: (fill me in with underlined FireFly component, core, orderer/consensus and etc.)
 - FireFly Issue: (leave this empty)
 
@@ -21,8 +19,10 @@ One paragraph explanation of the feature.
 Why are we doing this? What use cases does it support? What is the expected
 outcome?
 
-# Guide-level explanation
-[guide-level-explanation]: #guide-level-explanation
+# Internals
+[internals]: #internals
+
+> REQUIRED SECTION
 
 Explain the proposal as if it was already included in FireFly and you were
 teaching it to another FireFly developer. That generally means:
@@ -45,27 +45,38 @@ examples of its concrete impact. For policy FIRs, this section should provide
 an example-driven introduction to the policy, and explain its impact in
 concrete terms.
 
-# Reference-level explanation
-[reference-level-explanation]: #reference-level-explanation
+# Externals
 
-This is the technical portion of the FIR. Explain the design in sufficient
-detail that:
+[externals]: #externals
 
-- Its interaction with other features is clear.
-- It is reasonably clear how the feature would be implemented.
-- Corner cases are dissected by example.
+> REQUIRED SECTION
 
-The section should return to the examples given in the previous section, and
-explain more fully how the detailed proposal makes those examples work.
+This needs to make its way into the docs through your PRs, before the FIR can
+close. You don't have to write it in documentation form here, but it might
+save time to do so. The main thing is to make sure others can understand how
+they would use the feature, and for us all to agree "spelling" of new APIs/fields etc.
 
-# Drawbacks
+It's common for this section to evolve through comments, so don't worry if
+it's not fully complete when you open the PR
+
+# Testing
+[testing]: #testing
+
+> REQUIRED SECTION
+
+Unit test coverage is assumed.
+
+Please state if you will update the E2E tests.
+
+Describe any things that need to be tested manually before this FIR can be considered completed.
+
+# Drawbacks / alternatives
 [drawbacks]: #drawbacks
 
-Why should we *not* do this? Are there any risks that must be considered along with
-this FIR. 
+> REQUIRED SECTION (it's a great thought exercise - no need to spend too much time on it)
 
-# Rationale and alternatives
-[alternatives]: #alternatives
+Why should we *not* do this?
+Are there any risks that must be considered along with this FIR. 
 
 - Why is this design the best in the space of possible designs?
 - What other designs have been considered and what is the rationale for not
@@ -74,6 +85,8 @@ this FIR.
 
 # Prior art
 [prior-art]: #prior-art
+
+> OPTIONAL - please state "n/a" if you don't think there's anything significant
 
 Discuss prior art, both the good and the bad, in relation to this proposal.
 A few examples of what this can include are:
@@ -99,15 +112,10 @@ it does not on its own motivate an FIR.  Please also take into consideration
 that FireFly sometimes intentionally diverges from common distributed
 ledger/blockchain features.
 
-# Testing
-[testing]: #testing
-
-- What kinds of test development and execution will be required in order
-to validate this proposal, beyond the usual mandatory unit tests?
-- List integration test scenarios which will outline correctness of proposed functionality.
-
 # Dependencies
 [dependencies]: #dependencies
+
+> OPTIONAL - please state "n/a" if you don't think there's anything significant
 
 - Describe all dependencies that this proposal might have on other FIRs, known JIRA issues,
 Hyperledger FireFly components.  Dependencies upon FIRs or issues should be recorded as 
@@ -118,6 +126,8 @@ they are also linked to this FIR.
 
 # Unresolved questions
 [unresolved]: #unresolved-questions
+
+> OPTIONAL - please state "n/a" if there is nothing outstanding
 
 - What parts of the design do you expect to resolve through the FIR process
   before this gets merged?
