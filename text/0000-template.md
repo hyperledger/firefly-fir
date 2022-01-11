@@ -24,6 +24,8 @@ outcome?
 
 > REQUIRED SECTION
 
+Insert your diagrams here - we like pictures :-)
+
 Explain the proposal as if it was already included in FireFly and you were
 teaching it to another FireFly developer. That generally means:
 
