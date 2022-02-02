@@ -43,7 +43,8 @@ future needs as new use cases are added.
 # Guide-level explanation
 [guide-level-explanation]: #guide-level-explanation
 
-A FireFly `Transaction` is a fundamental unit of work in the system. It is first of all a container for:
+A FireFly `Transaction` is a fundamental unit of work in the system. It is first of all a container that
+can tie together:
 - One or more related `Operations`, which may trigger work via on- or off-chain plugins
 - Zero or more `BlockchainEvents`, which record blockchain feedback
 - Any new FireFly object that is generated as a result of the work, such as a `Batch` or `TokenTransfer`
@@ -112,8 +113,16 @@ guidelines:
 - If the expected `BlockchainEvents` are received, any `Operations` are successful, _and_ the target object is
   generated, the transaction has succeeded
 
-The status response object will include a top-level `status` of "Pending", "Succeeded", or "Failed", and a
-`details` array with information on each object checked to build the status.
+The response object for this API will include a top-level `status` of "Pending", "Succeeded", or "Failed", and a
+`details` array with information on each object checked to build the status. The elements of the `details`
+array will each have the following fields:
+- type - the type of child object, such as Operation/BlockchainEvent/Batch/etc
+- subtype - the child's self-identified subtype, such as an Operation for "blockchain_batch_pin" (optional)
+- status - the Pending/Succeeded/Failed status of this child
+- timestamp - for Succeeded/Failed items, the timestamp at which they completed
+- id - the child's ID (optional)
+- error - details on the error that caused a failure (optional)
+- info - any additional data relevant to this item (optional)
 
 A new `/namespaces/{ns}/transactions/{txid}/blockchainevents` API will be added for conveniently fetching the
 `BlockchainEvents` received in regards to a particular `Transaction`.
@@ -128,65 +137,66 @@ redesigned to retrieve the information from elsewhere.
 # Rationale and alternatives
 [alternatives]: #alternatives
 
-Due to the very specific meaning attached to the word "transaction" in the blockchain space,
-significant thought was devoted to whether we should abandon the word altogether and use a different
-word for this grouping construct. In the end, the term has been kept because a FireFly `Transaction`:
-- does accurately align with the general definition of a transaction in the computing world
+The word "transaction" is widely used and may come with varying preconceived expectations for users from
+different segments of the tech world. See [Prior art](#prior-art) for some examples.
+
+A detailed debate of the similarities and differences between the evolving definition of a FireFly transaction
+and these existing notions of a transaction was conducted over Discord -
+[thread here](https://discord.com/channels/905194001349627914/933768452387274884/933768455423918170) (or may
+need to search the "firefly" channel for the archived thread "Transaction naming"). A few of the notable
+counterpoints to the naming of FireFly transactions:
+* They do not (yet) support rollback, which is common for other uses of "transaction"
+* They do not map exactly 1:1 to blockchain transactions, which may be confusing to members of the blockchain community
+* They may serve different purposes from the perspective of different nodes (initiator vs. participant vs. observer)
+
+Multiple other terms have been considered, such as "action", "task", "work", "collection" - but none of these
+were felt to encompass the functionality better.
+
+In the end, the word "transaction" seemed to apply better than any other word, because they:
+- do reasonably align with the general definition of a transaction in the computing world
   (an input message to a computer system that must be dealt with as a single unit of work)
-- does usually correspond 1:1 with a blockchain transaction - and the instances where it does not
+- do _usually_ correspond 1:1 with a blockchain transaction - and the instances where it does not
   can be a positive opportunity to demonstrate the project's on- and off-chain flexibility
 
+Notably, the concerns around FireFly transactions vs. blockchain transactions directly influenced the
+inclusion of a `BlockchainIDs` field in the data model for `Transaction`, which should help
+highlight the relationship.
 # Prior art
 [prior-art]: #prior-art
 
-Discuss prior art, both the good and the bad, in relation to this proposal.
-A few examples of what this can include are:
+Transactions are an almost universal construct in the field of technology. Examples include:
+* Database transactions
+* XA atomic transactions across systems
+* BPM long-lived and short-lived transactions
+* SaaS platform transactions
+* Blockchain transactions
 
-- For consensus, global state, transaction processors, and smart contracts
-  implementation proposals: Does this feature exists in other distributed
-  ledgers and what experience have their communities had?
-- For community proposals: Is this done by some other community and what were
-  their experiences with it?
-- For other teams: What lessons can we learn from what other communities have
-  done here?
-- Papers: Are there any published papers or great posts that discuss this? If
-  you have some relevant papers to refer to, this can serve as a more detailed
-  theoretical background.
-
-This section is intended to encourage you as an author to think about the
-lessons from other distributed ledgers, provide readers of your FIR with
-a fuller picture.  If there is no prior art, that is fine - your ideas are
-interesting to us whether they are brand new or if it is an adaptation.
-
-Note that while precedent set by other distributed ledgers is some motivation,
-it does not on its own motivate an FIR.  Please also take into consideration
-that FireFly sometimes intentionally diverges from common distributed
-ledger/blockchain features.
+Similarities and differences with these various technologies were discussed as outlined in the section above.
+BPM transactions were agreed to be one of the most similar to the concept in FireFly as outlined here.
 
 # Testing
 [testing]: #testing
 
-- What kinds of test development and execution will be required in order
-to validate this proposal, beyond the usual mandatory unit tests?
-- List integration test scenarios which will outline correctness of proposed functionality.
+Manual testing of the UI will be needed to identify any screens broken by the changes to the data model.
 
 # Dependencies
 [dependencies]: #dependencies
 
-- Describe all dependencies that this proposal might have on other FIRs, known JIRA issues,
-Hyperledger FireFly components.  Dependencies upon FIRs or issues should be recorded as 
-links in the proposals issue itself.
-
-- List down related FIRs proposals that depend upon current FIR, and likewise make sure 
-they are also linked to this FIR.
+This is closely tied to FIR #2, as it relies heavily on the `BlockchainEvent` type introduced as
+an offshoot of the on-chain logic work.
 
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
-- What parts of the design do you expect to resolve through the FIR process
-  before this gets merged?
-- What parts of the design do you expect to resolve through the implementation
-  of this feature before stabilization?
-- What related issues do you consider out of scope for this FIR that could be
-  addressed in the future independently of the solution that comes out of this
-  FIR?
+1. We want to be certain that explaining a FireFly transaction and its purpose can be accomplished
+  relatively easily. It should either be entirely self-evident to someone reading the code or the UI,
+  or it should be easily discoverable with a few lines of documentation. If the current proposal is
+  felt to come up short here, it warrants more discussion.
+
+2. There are two helper APIs nested under messages:
+  - `/namespaces/{ns}/messages/{msgid}/transaction`
+  - `/namespaces/{ns}/messages/{msgid}/operations`
+
+  These APIs allow fetching the transaction associated with a message, and the operations associated
+  with that transaction. It's unclear whether these helpers should both continue to exist, and whether
+  any new helpers should be added for blockchain events.
