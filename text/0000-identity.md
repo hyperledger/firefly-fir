@@ -87,6 +87,11 @@ Details of the DID specification can be found at [https://www.w3.org/TR/did-core
 
 Given the already defined namespace `did:firefly`, we want to be able to generate a [DID Document](https://www.w3.org/TR/did-core/#example-1-a-simple-did-document) via a REST API.
 
+The DID URI schemes for the three current supported identity types proposed are:
+
+- `org`: `did:firefly:org/{UUID}` - note shift from UUID
+- `org`: `did:firefly:org/acme` (existing)
+
 Given an organization identity string `did:firefly:org/acme`, a DID Document like the following must be returned by the identity manager:
 
 ```
