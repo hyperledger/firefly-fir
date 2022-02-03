@@ -26,15 +26,66 @@ As a result, the DLT specific values can be spreading across an application code
 
 In addition, FireFly also defines an `author` construct that identifies the signer, but still requires the separate `key` property to be provided alongside. Where we'd like for FireFly to be is for the signing keys to bound under the signer's identifier, so that the signer identifier is the only required parameter. This is also critical to supporting key rotations. Currently when a signing key is rotated, the application configuration must be updated accordingly which is not ideal.
 
-To find a global identity scheme that supports resolution to (possibly multiple) signing keys, and can support any DLT protocols, we need not look any further than the DID technologies (Decentralized Identifiers). This is a W3C specification that defines a universal mechanism to represent an identity (people, orgs, things) that holds cryptographic keys. The design of the DID architecture consists of two high level parts: the `DID string` and the `DID document`. The string is used as the unique identitier that resolves to the document which provides rich information about the identity, such as public keys and verification methods.
+FireFly has a set of pre-defined rules for verification of identity according to the below table from https://github.com/hyperledger/firefly/issues/187.
 
-Details of the DID specification can be found at [https://www.w3.org/TR/did-core/](https://www.w3.org/TR/did-core/).
+These extend to identity types of `Organization` that exist today as a built-in identity type, but there is no possibility to extend beyond these for application defined identities that are in a tree of children below and organization and have custom attributes.
+
+![](https://user-images.githubusercontent.com/6660217/132556591-f454d893-3812-4d19-b052-1d38365d4602.png)
 
 # Guide-level explanation
 
 [guide-level-explanation]: #guide-level-explanation
 
-Given the already defined namespace `did:firefly`, we want to complete the DID support by making the [identity manager](https://github.com/hyperledger/firefly#firefly-core-code-hierarchy) return a [DID Document](https://www.w3.org/TR/did-core/#example-1-a-simple-did-document).
+This FIR extends the two core identity types of `Organization` and `Node` to be built on a generic `Identity` resource, in order to:
+
+1. Make identity extensible by applications, allowing broadcast of granular application-specific identities in a tree under an organization
+2. Allow multiple signing keys to be registered by a single identity, for key rotation scenarios, and multiple key types/uses
+3. Allow minimum viable DID documents to be obtained for FireFly backed identities
+4. Provide a model that is designed for future extensibility to externally verifiable DID backed identities (implementation out of scope for this FIR)
+
+All `Identity` resources behave as `Organization` does today, in that:
+- Name must be unique (now scope to a `namespace` and `type`)
+- Are broadcast to the network (with an associated `message`)
+- Have a `profile`
+- Have a `parent` (required for every `Identity` except a root `Organization` type `Identity`)
+
+### API changes
+
+- `GET`/`POST` `/network/organizations/*` - **changed** JSON payload for the `organization` resource (detail below)
+- `GET`/`POST` `/network/nodes/*` - **changed** JSON payload for the `node` resource (detail below)
+- `GET`/`POST` `/namespaces/{ns}/identities/*` - **new** resource collection to broadcast/query namespace scoped `identity` resources
+
+### Database updates
+
+![ERD diagram](diagrams/0000-identity-dbdiagram.png)
+
+- **remove** `organizations` database collection
+- **remove** `nodes` database collection
+- **add** `identities` database collection
+- **add** `signing_keys` database collection
+
+### Resource changes
+
+- `Organization` resources will now be stored as `Identity` resources:
+  - `namespace` - `ff_system`
+  - `type` - `organization`
+  - `parent` - must be of type `organization` or `null` - **only** organizations can be root identities
+- `Node` resources will now be stored as `Identity` resources:
+  - `namespace` - `ff_system`
+  - `type` - `node`
+  - `parent` - must be of type `organization`
+- `Identity` new resource type that can be defined by a user within a namespace
+  - `namespace` - any
+  - `type` - **must** be `custom` for user-defined objects
+  - `parent` - must be of type `organization` or `custom`
+
+### DID Support
+
+To find a global identity scheme that supports resolution to (possibly multiple) signing keys, and can support any DLT protocols, we need not look any further than the DID technologies (Decentralized Identifiers). This is a W3C specification that defines a universal mechanism to represent an identity (people, orgs, things) that holds cryptographic keys. The design of the DID architecture consists of two high level parts: the `DID string` and the `DID document`. The string is used as the unique identifier that resolves to the document which provides rich information about the identity, such as public keys and verification methods.
+
+Details of the DID specification can be found at [https://www.w3.org/TR/did-core/](https://www.w3.org/TR/did-core/).
+
+Given the already defined namespace `did:firefly`, we want to be able to generate a [DID Document](https://www.w3.org/TR/did-core/#example-1-a-simple-did-document) via a REST API.
 
 Given an organization identity string `did:firefly:org/acme`, a DID Document like the following must be returned by the identity manager:
 
