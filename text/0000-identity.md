@@ -89,8 +89,12 @@ Given the already defined namespace `did:firefly`, we want to be able to generat
 
 The DID URI schemes for the three current supported identity types proposed are:
 
-- `org`: `did:firefly:org/{UUID}` - note shift from UUID
-- `org`: `did:firefly:org/acme` (existing)
+- `org`:
+    - `did:firefly:org/{NAME}` - note this is a change from UUID
+- `node`:
+    - `did:firefly:node/{NAME}`
+- `custom`:
+    - `did:firefly:ns/{NAMESPACE}/{NAME}` (existing)
 
 Given an organization identity string `did:firefly:org/acme`, a DID Document like the following must be returned by the identity manager:
 
