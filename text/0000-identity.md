@@ -65,39 +65,28 @@ Given an organization identity string `did:firefly:org/acme`, a DID Document lik
 }
 ```
 
-In the above example, the first verification method is based on an secp256k1 key used for an Ethereum based blockchain. The public key is not specified but instead an `blockchainAccountId` is specified with the standard 20-byte account address used by the Ethereum community in the place of the public key.
+Some detailed explanations about the above example:
+
+- the first verification method, with the type `EcdsaSecp256k1VerificationKey2019`, is for verifying digital signatures. This is evident in the `authentication` section which specifies the public key to use when authenticating an incoming signed request.
+- the public key for the first key entry is not specified, but instead an `blockchainAccountId` is specified with the standard 20-byte account address. This is following the convention used by the Ethereum community to match a digital signature to the signing address in the place of the public key.
+- the second verification method, with the type `X25519KeyAgreementKey2019`, is for encryption purposes. This is evident in the `keyAgreement` section which specifies the public key to use when negotiating encryption keys for secure data exchange. One potential usage of such a key entry is in the data exchange module.
+- Other [Verification Relationships](https://www.w3.org/TR/did-core/#verification-relationships) are currently not used in the context of FireFly.
 
 Below is an example of a Fabric based verification method entry:
 
 ```
 {
   "id": "did:firefly:org/acme#user1",
-  "alsoKnownAs": "did:firefly:org/acme#mspIdForAcme::x509::CN=fabric-ca::CN=user1",
+  "type": "HyperledgerFabricMSPIdentity",
   "controller": "did:firefly:org/acme",
-  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9...wQIDAQAB\n-----END PUBLIC KEY-----"
+  "mspIdentityString": "mspIdForAcme::x509::CN=fabric-ca::CN=user1"
 }
 ```
 
-The `type` property is omitted for now because the values for popular curves used by the Fabric community, secp256r1 etc., have not been defined (https://w3c-ccg.github.io/security-vocab), but also because the certificate already contains algorithm information on the signing key.
-
-The `alsoKnownAs` property specifies the binding between the short form (`user1`) and the long form (`mspIdForAcme::x509::CN=fabric-ca::CN=user1`) of the Fabric signing identity ID. A reciprocal DID document must exist to provide the reverse binding:
-
-```
-{
-  "id": "did:firefly:org/acme#mspIdForAcme::x509::CN=fabric-ca::CN=user1",
-  "alsoKnownAs": "did:firefly:org/acme#user1",
-  "controller": "did:firefly:org/acme",
-  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9...wQIDAQAB\n-----END PUBLIC KEY-----"
-}
-```
-
-The `authentication` section specifies the public key to use when authenticating an incoming signed request.
-
-The `keyAgreement` section specifies the public key to use when negotiating encryption keys for secure data exchange.
-
-Other [Verification Relationships](https://www.w3.org/TR/did-core/#verification-relationships) are currently not used in the context of FireFly.
-
-With the DID Document resolution given the DID string, we should be able to remove the `key` property from the payload and require only the `author` field. The reference to the signing key can be obtained by parsing the DID document and locating the key used by the `authentication` specification of the document. Using the reference to the public key, the private key can then be located in the wallet managed by the FireFly blockchain plugin.
+- The `type` property is set to `HyperledgerFabricMSPIdentity` because it represents an identity backed by certificates (all Fabric identities must be backed by x.509 or idmixer certificates) and follows the Fabric MSP verification rules
+- Because the certificates themselves contain digital signing algorithm information on the signing key, the type value does not need to provide that information
+- The `mspIdentityString` property specifies the concise format for the certificate chain that must be matched by the signature. For details of the Fabric signing rules, refer to [the Fabric documentation](https://hyperledger-fabric.readthedocs.io/en/release-2.4/msp.html)
+- The sample value `mspIdForAcme::x509::CN=fabric-ca::CN=user1` applies to x.509 certificates. Certificates based on idmixer will be discussed in a future revision
 
 # Reference-level explanation
 
