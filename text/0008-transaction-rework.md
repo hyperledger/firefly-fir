@@ -1,9 +1,3 @@
----
-layout: default
-title: FIR Template
-nav_order: 3
----
-
 - Feature Name: Transaction Rework
 - Start Date: 2022-01-27
 - FIR PR: (leave this empty)
