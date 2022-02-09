@@ -51,6 +51,9 @@ Finally, a FireFly `Transaction` exposes a meaningful status, which is computed 
 into account the status of all contained `Operations`, `BlockchainEvents`, etc to provide an
 accurate and useful assessment as to whether the work was completed as expected.
 
+All current transaction types and their possible children are illustrated here:
+![FireFly Transactions](../image/transactions.png)
+
 # Reference-level explanation
 [reference-level-explanation]: #reference-level-explanation
 
