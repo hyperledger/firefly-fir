@@ -51,12 +51,17 @@ will be updated with a reference to the new operation.
 
 ## Operations manager
 
-This change introduces a new component called the `Operations Manager`. This manager will know how to
-map a given `Operation` object to an actual plugin call (by inspecting the operation's `Type` and `Input`).
-For all plugin calls wrapped by an `Operation`, callers will now _not_ invoke the plugin directly, but
-will simply construct the `Operation` object and pass it to the `Operations Manager` for handling the
-plugin call. This will also enable the manager to retry any previous operation by simply reading the
-`Operation` object and triggering the relevant plugin call again.
+This change introduces a new component called the `Operations Manager`. It will maintain a registry of
+operations handlers, where other managers can register the operations that they handle.
+
+Each `Operation Handler` will provide methods for `PrepareOperation` and `RunOperation`. The "prepare"
+phase takes an `Operation` and gathers any extra data that may be needed (such as loading other database
+objects referenced in the operation's `Input` field). The "run" phase takes the output data from the
+"prepare" phase and triggers the actual plugin call to perform the operation.
+
+The individual managers can omit some of the "prepare" steps in most cases and invoke "run" directly.
+However, in the case of retries, the `Operations Manager` will be able to invoke both "prepare" and "run"
+in order to re-run any `Operation`.
 
 ## Operation APIs and data model changes
 
@@ -117,4 +122,29 @@ and Operations that has already been committed as part of that item.
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
-TBD
+## Dispatch batch has automatic retries
+
+The batch dispatcher retries indefinitely to dispatch a batch. If operations during the
+dispatch are failing, it could create lots of duplicate operations due to these retries.
+
+## Sequential dependency for batch broadcasts
+
+The operation "publicstorage_batch_broadcast", which tracks the copying of a batch payload into
+IPFS, is a direct pre-requisite for the operation "blockchain_batch_pin" in the broadcast case.
+Need to ensure that "publicstorage_batch_broadcast" cannot be retried in such a way as to
+invalidate a later "blockchain_batch_pin". Need to also ensure there are no other sequential
+dependencies in operations.
+
+## Missing operation for public blob upload
+
+There is currently no operation to track when a blob is uploaded to IPFS. When performing a
+broadcast, this step actually occurs synchronously in the broadcast call, just before inserting
+the message (ie long before the message has been assigned to a batch).
+
+It feels like this should be tracked by an operation and should be retryable, but all other
+message operations are associated with a batch.
+
+The operation _could_ be deferred to the batching stage. Or, a new transaction could be introduced
+for the message preparation phase (but this transaction would not have a blockchain ID associated,
+and it might be confusing for the message to ultimately be associated with two different
+transactions).
