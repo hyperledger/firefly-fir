@@ -42,12 +42,15 @@ This FIR extends the two core identity types of `Organization` and `Node` to be 
 2. Allow multiple signing keys to be registered by a single identity, for key rotation scenarios, and multiple key types/uses
 3. Allow minimum viable DID documents to be obtained for FireFly backed identities
 4. Provide a model that is designed for future extensibility to externally verifiable DID backed identities (implementation out of scope for this FIR)
+5. Update the registration process to require both the key of the parent, and the key of the child, when registering identities
 
 All `Identity` resources behave as `Organization` does today, in that:
 - Name must be unique (now scope to a `namespace` and `type`)
 - Are broadcast to the network (with an associated `message`)
 - Have a `profile`
 - Have a `parent` (required for every `Identity` except a root `Organization` type `Identity`)
+- Have a link to an `IdentityClaim` that references a batch-pinned message that claimed the identity
+- Have a link to an `IdentityVerification` that references a batch-pinned message from the parent identity - unless it is a root org
 
 ### API changes
 
