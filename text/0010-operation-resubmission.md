@@ -60,8 +60,8 @@ objects referenced in the operation's `Input` field). The "run" phase takes the 
 "prepare" phase and triggers the actual plugin call to perform the operation.
 
 The individual managers can omit some of the "prepare" steps in most cases and invoke "run" directly.
-However, in the case of retries, the `Operations Manager` will be able to invoke both "prepare" and "run"
-in order to re-run any `Operation`.
+However, the `Operations Manager` will expose a `RetryOperation` method which is able to invoke both
+"prepare" and "run" together, in order to re-run any `Operation`.
 
 ## Operation APIs and data model changes
 
@@ -69,7 +69,9 @@ A new API will be added for `POST /namespaces/{ns}/operations/{opid}/retry`. It 
 
 The `Operation` type will add a new field for "retry", which is a UUID reference to another operation
 that represents a retry of the original. A given operation may only be retried once - but the retry may
-be retried if needed (and so on), forming a chain of retried operations.
+be retried if needed (and so on), forming a chain of retried operations. As a convenience, attempting to
+retry an operation that has already been retried will actually follow the current chain of retries and
+add a new retry to the latest operation in that chain.
 
 ## Transaction status
 
@@ -78,32 +80,57 @@ The processing for `GET /namespaces/{ns}/transactions/{txnid}/status` will be up
 * If any child operation is found with status "Pending" _and no retry_, the transaction is "Pending"
 * Otherwise, continue with the usual logic for examining blockchain events and other aspects of the transaction
 
-This change also increases the likelihood that a transaction will have a large number of operations
-associated with it (in the case of many retries). For efficiency, the status reporting logic should be enhanced
-with more targeted queries on the conditions above, rather than relying on listing every single operation.
-
 The `TransactionStatus` type will add a new field for "updated", which is the timestamp of the newest update
 to a child in the transaction (operation, blockchain event, etc). This will make it easier to flag "stale"
 transactions whose operations are hung.
+
+## Automatic retries and de-duplication
+
+Some operations in the system (notably those involved in batch pinned messages) are already subject to
+automatic retries - ie, if any part of batch processing fails due to a "recoverable" error, the whole batch is
+retried over again.
+
+To accomodate this situation without generating (potentially large numbers of) duplicate `Operation` entries,
+the `Operations Manager` will expose a grouping method `RunWithOperationCache` and a helper method
+`AddOrReuseOperation`. These will function similarly to `database.RunAsGroup` and will keep a cache of all
+operations added within the given context, avoiding an insert of a duplicate operation but rather reusing
+the same operation(s) over and over for a given set of unique inputs.
+
+This functionality will _only_ be used within a controlled context in Go that wraps automated, idempotent
+retries. User-initiated retries will always generate a new `Operation` object with a new ID.
 
 # Drawbacks
 [drawbacks]: #drawbacks
 
 There is little risk associated with this change.
 
-Due to the efficiency considerations noted above, there will be some reduction in the details reported by
-`GET /namespaces/{ns}/transactions/{txnid}/status`, which will need to be taken into account for the UI or
-anything else that queries this data.
+It does introduce a slightly higher possibility of having a transaction with a large number of operations.
+While this is already possible today (such as a private message batch with many individual pieces of data,
+sent to many recipients), retries will be another mechanism to add new operations to a transaction.
+Because the transaction status API (in particular) relies on being able to list _all_ operations from a
+transaction, it may result in a large response body. This behavior will not change today, but is noted here
+and may at some point need to be revisited.
 
 # Rationale and alternatives
 [alternatives]: #alternatives
 
-TBD
+As a type of middleware, FireFly needs to be very organized in how it delegates operations to other backends.
+Without this, it may be difficult for end users of FireFly to triage and recover from failures.
+
+No significant alternatives have been considered here - while the details have evolved slightly over time,
+the creation of a centralized Operations Manager seems obvious to solve this problem.
 
 # Prior art
 [prior-art]: #prior-art
 
-TBD
+The "retry pattern" is a common one, particularly in web-based services. One representative example
+documenting the pattern: https://docs.microsoft.com/en-us/azure/architecture/patterns/retry
+
+Much of the design around this pattern focuses on automated retries with some backoff, and intelligent
+logic to separate conditions that are likely to resolve themselves over time from those that are
+permanent. For the time being, this FIR leaves that determination up to a user/adminstrator by making
+the "retry" a manual operation. However, this architecture is easily extendable in the future to add
+more automated retries if the need arises.
 
 # Testing
 [testing]: #testing
@@ -122,18 +149,16 @@ and Operations that has already been committed as part of that item.
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
-## Dispatch batch has automatic retries
+## Sequential dependencies between operations
 
-The batch dispatcher retries indefinitely to dispatch a batch. If operations during the
-dispatch are failing, it could create lots of duplicate operations due to these retries.
+The operation `publicstorage_batch_broadcast`, which tracks the copying of a batch payload into
+IPFS, is a direct pre-requisite for the operation `blockchain_batch_pin` in the broadcast case.
+Need to ensure that `publicstorage_batch_broadcast` cannot be retried in such a way as to
+invalidate a later `blockchain_batch_pin`.
 
-## Sequential dependency for batch broadcasts
-
-The operation "publicstorage_batch_broadcast", which tracks the copying of a batch payload into
-IPFS, is a direct pre-requisite for the operation "blockchain_batch_pin" in the broadcast case.
-Need to ensure that "publicstorage_batch_broadcast" cannot be retried in such a way as to
-invalidate a later "blockchain_batch_pin". Need to also ensure there are no other sequential
-dependencies in operations.
+Due to the way IPFS is designed, submitting an exactly identical payload should always result in
+an exactly identical hash - but need to ensure this is good enough in the case of this dependency,
+and need to also ensure there are no other sequential dependencies in operations.
 
 ## Missing operation for public blob upload
 
