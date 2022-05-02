@@ -104,6 +104,7 @@ namespaces:
   default: default
   predefined:
   - name: default
+    alias: default
     description: Default predefined namespace
     definitions: broadcast
     plugins:
@@ -122,18 +123,24 @@ the current tokens config such as `url` moves into an `fftokens` sub-key, to mir
 other plugins are structured). Config restrictions:
 * all plugin names must be fully unique on this node (any duplicate name is a config error)
 
-The `namespaces.predefined` objects will get two new sub-keys for `definitions` and `plugins`.
-`definitions` is an enum with values `broadcast` (the default) or `local`. `plugins` is an
-array of plugin names to be activated for this namespace. Config restrictions:
-* if `plugins` is omitted, the default is to activate all available plugins
-* a database plugin is required for every namespace
-* if `definitions: broadcast` is specified, plugins must include one each of blockchain,
-  data exchange, and shared storage
+The `namespaces.predefined` objects will get three new sub-keys:
+* `alias` is a local name for the namespace (useful for interacting with multiple shared
+  namespaces of the same name - defaults to `name` if omitted)
+* `definitions` is an enum with values `broadcast` (the default) or `local`
+* `plugins` is an array of plugin names to be activated for this namespace (defaults to
+  all available plugins if omitted)
+
+Config restrictions:
+* `alias` must be unique on this node
+* if two namespaces share the same remote `name`, they cannot share any plugins in common
+* a `database` plugin is required for every namespace
+* if `definitions: broadcast` is specified, plugins must include one each of `blockchain`,
+  `dataexchange`, and `sharedstorage`
 * at most one of each type of plugin is allowed per namespace, except for tokens (which
   may have many per namespace)
 
 This should allow for graceful deprecation and sensible defaults when parsing old config files,
-while enabling of the new configuration needed of this FIR.
+while enabling all of the new configuration needed in this FIR.
 
 ## Namespace APIs
 
@@ -166,14 +173,29 @@ The following are all "definition" types in FireFly:
 
 For namespaces with the new `definitions: local` config, the APIs which create these
 definitions will become an immediate local database insert, instead of performing a
-broadcast. This will mean commonizing logic from event handler into the other managers.
+broadcast. This may mean restructuring the Definition Handler to be callable from
+other managers (as currently it is only invoked by the Event Manager).
 
-## Plugin Routing
+## Plugin Routing (Outbound)
 
 Nearly every manager call will now have a pre-flight namespace lookup to determine the
 plugin that will handle it, instead of being able to rely on statically configured
 plugins. If a namespace does not have active plugins of the type(s) needed for a
 particular request, it will reject with HTTP 400.
+
+If the namespace has a local `alias`, it will be replaced with the remote namespace
+`name` before calling out to the plugin.
+
+## Event Routing (Inbound)
+
+When processing events, each event will be parsed against the configured namespaces to
+find a match on two dimensions:
+* event `namespace` must match the namespace `name`
+* source plugin for the event must match an active plugin on the namespace
+
+If no matching namespace is found, the event will be dropped. If the matching namespace
+also has an `alias`, the `alias` will be substituted before persisting any database
+objects.
 
 # Drawbacks
 [drawbacks]: #drawbacks
