@@ -147,6 +147,10 @@ while enabling all of the new configuration needed in this FIR.
 Namespaces will now be defined only via config, so the POST API for defining new namespaces will
 be removed.
 
+The database will need to be checked on startup for any old namespaces created via the API, and
+should consider it a fatal error if any namespaces are found in the database but not the current
+config.
+
 ## Identities
 
 Org and node identities must now be broadcast on a normal namespace, instead of on the special
