@@ -132,6 +132,7 @@ The `namespaces.predefined` objects will get three new sub-keys:
 
 Config restrictions:
 * `alias` must be unique on this node
+* for historical reasons, "ff_system" is a reserved string and cannot be used as an `alias`
 * if two namespaces share the same remote `name`, they cannot share any plugins in common
 * a `database` plugin is required for every namespace
 * if `definitions: broadcast` is specified, plugins must include one each of `blockchain`,
@@ -141,6 +142,8 @@ Config restrictions:
 
 This should allow for graceful deprecation and sensible defaults when parsing old config files,
 while enabling all of the new configuration needed in this FIR.
+
+TBD: is the "default" namespace still required, and does it have any restrictions?
 
 ## Namespace APIs
 
@@ -157,7 +160,9 @@ Org and node identities must now be broadcast on a normal namespace, instead of 
 "ff_system" namespace. The "ff_system" namespace will no longer be used. Top-level org and node
 APIs must be deprecated or removed, and new ones added under `/namespaces/{ns}`.
 
-TBD: How to migrate existing identities defined on "ff_system"?
+When resolving an identity, FireFly will first check against the current namespace, and then
+(for historical reasons) against the "ff_system" namespace.
+
 TBD: How to adjust org/node details reported by the `/status` API?
 
 ## Local Definitions
