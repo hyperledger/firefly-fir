@@ -143,16 +143,16 @@ Config restrictions:
 This should allow for graceful deprecation and sensible defaults when parsing old config files,
 while enabling all of the new configuration needed in this FIR.
 
+It will no longer be necessary to store namespaces in the database. They will be read directly
+from the config into memory. For migration purposes, any existing namespaces in the database
+will be read and merged into the config (with the config taking precedence).
+
 TBD: is the "default" namespace still required, and does it have any restrictions?
 
 ## Namespace APIs
 
 Namespaces will now be defined only via config, so the POST API for defining new namespaces will
 be removed.
-
-The database will need to be checked on startup for any old namespaces created via the API, and
-should consider it a fatal error if any namespaces are found in the database but not the current
-config.
 
 ## Identities
 
