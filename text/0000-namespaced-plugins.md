@@ -209,12 +209,19 @@ objects.
 # Drawbacks
 [drawbacks]: #drawbacks
 
-TODO
+This is a fairly dramatic expansion of what a "namespace" means in FireFly, so the
+migration (both in technical terms and in terms of how users should think about it)
+is complex. It should be possible to migrate environments without breaking existing use
+cases, but there is definitely some potential for edge cases we haven't considered.
 
 # Rationale and alternatives
 [alternatives]: #alternatives
 
-TODO
+Rather than redefining "namespaces", a new construct could be introduced to serve these
+additional use cases. While this would mitigate the migration impact, it would overall
+represent a larger code change to add the new construct to all APIs across the system.
+Since namespaces are already pervasive but ill-defined, reworking them with a clearer
+purpose seems like a reasonable route.
 
 # Prior art
 [prior-art]: #prior-art
@@ -224,12 +231,16 @@ TODO
 # Testing
 [testing]: #testing
 
-TODO
+Migration testing of existing environments of various configs will be critical to avoid
+breaking things as a result of this change.
+
+New E2E tests for nodes in different configs (multi-consortia and "gateway" mode) will also
+need to be added.
 
 # Dependencies
 [dependencies]: #dependencies
 
-TODO
+No known dependencies
 
 # Unresolved questions
 [unresolved]: #unresolved-questions
