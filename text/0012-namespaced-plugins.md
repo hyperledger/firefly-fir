@@ -149,6 +149,8 @@ will be read and merged into the config (with the config taking precedence).
 
 TBD: is the "default" namespace still required, and does it have any restrictions?
 
+TBD: do plugin names have to agree across all members of a consortium?
+
 ## Namespace APIs
 
 Namespaces will now be defined only via config, so the POST API for defining new namespaces will
