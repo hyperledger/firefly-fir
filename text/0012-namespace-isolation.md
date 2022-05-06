@@ -134,13 +134,16 @@ namespaces:
     remoteName: default
     description: Default predefined namespace
     networkMode: shared
-    identityFallbackEnabled: true
     plugins:
     - sqlite3
     - ethereum
     - ffdx
     - ipfs
     - erc20_erc721
+
+identity:
+  manager:
+    legacySystemIdentities: true
 ```
 
 The top-level keys for `database`, `blockchain`, `dataexchange`, `sharedstorage`, and
@@ -156,8 +159,6 @@ The `namespaces.predefined` objects will get three new sub-keys:
   locally used name (useful for interacting with multiple shared namespaces of the same name -
   defaults to the value of `name`)
 * `networkMode` is an enum with values `shared` or `local` (defaults to `shared`)
-* `identityFallbackEnabled` is a flag to allow resolving legacy identities defined on "ff_system"
-  (defaults to `true`)
 * `plugins` is an array of plugin names to be activated for this namespace (defaults to
   all available plugins if omitted)
 
@@ -177,10 +178,6 @@ It will no longer be necessary to store namespaces in the database. They will be
 from the config into memory. For migration purposes, any existing namespaces in the database
 will be read and merged into the config (with the config taking precedence).
 
-TBD: is the "default" namespace still required, and does it have any restrictions?
-
-TBD: do plugin names have to agree across all members of a consortium?
-
 ## Namespace APIs
 
 Namespaces will now be defined only via config, so the POST API for defining new namespaces will
@@ -189,14 +186,33 @@ be removed.
 ## Identities
 
 Org and node identities must now be broadcast on a normal namespace, instead of on the special
-"ff_system" namespace. The "ff_system" namespace will no longer be used. Top-level org and node
-APIs must be deprecated or removed, and new ones added under `/namespaces/{ns}`.
+"ff_system" namespace. The "ff_system" namespace will no longer be used. An identity must be
+defined on every namespace where it is to be used, and identities can only be resolved within
+a given namespace (this includes resolving DIDs).
 
-If the `identityFallbackEnabled` flag is enabled for a namespace when resolving an identity,
-FireFly will first check against that namespace, and then against the legacy "ff_system"
+The following top-level APIs are therefore deprecated and replaced:
+```
+/network/identities - replaced by existing /namespaces/{ns}/identities
+/network/identities/{did} - replaced by new /namespaces/{ns}/identities/{did}
+/network/diddocs/{did} - replaced by new /namespaces/{ns}/dids/{did}
+```
+
+The following APIs are moved from the top-level to reside under `/namespaces/{ns}`:
+
+```
+/network/nodes
+/network/nodes/{nameOrId}
+/network/nodes/self
+/network/organizations
+/network/organizations/{nameOrId}
+/network/organizations/self
+/status
+```
+
+For backwards-compatibility, a new `identity.manager.legacySystemIdentities` config is
+provided, which defaults to `true`. If enabled when resolving an identity, FireFly will
+first check against the current namespace, and then against the legacy "ff_system"
 namespace.
-
-TBD: How to adjust org/node details reported by the `/status` API?
 
 ## Local Definitions
 
@@ -249,12 +265,12 @@ between application starts is much higher. Names, plugins, and configuration det
 may be liable to change at any point, giving users more opportunities to create
 problems via invalid config.
 
-Removing the ability to broadcast new namespaces on the fly may introduce a burden if
-any users rely on this functionality to define lots of namespaces without editing the
-config on every node. Satisfying this requirement in the new landscape would require
-introducing some notion of "child" namespaces that can be dynamically created via a
-broadcast on an existing multi-party namespace, which is not currently in scope for
-this FIR.
+Removing the ability to dynamically broadcast new namespaces may introduce a burden if
+any users rely on this functionality to define namespaces without editing the
+config on every node. Adding back this requirement in the new landscape would require
+some notion of "child" namespaces that can be created via a
+broadcast on an existing multi-party namespace (not currently in scope for
+this FIR).
 
 # Rationale and alternatives
 [alternatives]: #alternatives
@@ -281,9 +297,14 @@ New E2E tests for nodes with different combinations of namespace configs will al
 # Dependencies
 [dependencies]: #dependencies
 
-No known dependencies
+[#792](https://github.com/hyperledger/firefly/pull/792) may ease some of the migration, because many
+relocated URLs (like `/status` and `/network/organizations`) will continue working by simply
+switching to query the default namespace when a namespace is omitted from the URL path.
 
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
-TODO
+* By moving the `/status` route to be namespaced, but not child routes such as `/status/websockets`,
+  it creates a confusing division of APIs. May need further discussion and renaming of these routes.
+* Currently the names configured for tokens plugins must agree across all members of a consortium. It
+  would be nice to remove this restriction as part of this change.
