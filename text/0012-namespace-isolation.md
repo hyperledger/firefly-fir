@@ -21,16 +21,6 @@ In addition, the special "ff_system" namespace will be removed.
 # Motivation
 [motivation]: #motivation
 
-Currently FireFly nodes function as part of exactly one consortium. They require three shared communication
-pipes with the other members (blockchain, data exchange, shared storage), and all definitions (identities,
-datatypes, token pools, etc) are broadcast to other members by default. This satisfies one very common
-enterprise use case, but is not flexible enough.
-
-This change will enable two important points of flexibility:
-- a FireFly node can communicate with many different consortia, using different communication pipes for each one
-- a FireFly node can function as an ad-hoc gateway to any blockchain, without requiring things like FireFly
-  identities and definitions to be broadcast on that chain
-
 A FireFly supernode is designed to be an organization's web3 gateway to all the blockchain ecosystems that
 they participate in - multiple blockchains, multiple token economies, multiple business networks.
 
