@@ -124,6 +124,8 @@ namespaces:
     remoteName: default
     description: Default predefined namespace
     networkMode: shared
+    org:
+      key: 0x123456
     plugins:
     - sqlite3
     - ethereum
@@ -144,11 +146,12 @@ the current tokens config such as `url` moves into an `fftokens` sub-key, to mir
 other plugins are structured). Config restrictions:
 * all plugin names must be fully unique on this node (any duplicate name is a config error)
 
-The `namespaces.predefined` objects will get three new sub-keys:
+The `namespaces.predefined` objects will get these new sub-keys:
 * `remoteName` is the namespace name to be recorded in plugin calls, if it differs from the
   locally used name (useful for interacting with multiple shared namespaces of the same name -
   defaults to the value of `name`)
 * `networkMode` is an enum with values `shared` or `local` (defaults to `shared`)
+* `org.key` is a string allowing you to override the default signing key within this namespace
 * `plugins` is an array of plugin names to be activated for this namespace (defaults to
   all available plugins if omitted)
 
