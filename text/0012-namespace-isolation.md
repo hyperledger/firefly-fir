@@ -251,6 +251,12 @@ many copies of the same loop, if a plugin is shared across multiple namespaces).
 If the namespace has a `remoteName` configured, the event loop will substitute in the
 local `name` before processing the event.
 
+## FireFly CLI
+
+The CLI will be enhanced to support defining a default namespace with `networkMode: local`
+(which also implies no org/node registration). The default behavior of the CLI will continue
+to be generating a "multi-party" or "shared" namespace.
+
 # Drawbacks
 [drawbacks]: #drawbacks
 
