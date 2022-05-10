@@ -140,7 +140,10 @@ identity:
 
 The top-level keys for `database`, `blockchain`, `dataexchange`, `sharedstorage`, and
 `tokens` will be deprecated in favor of the new ones above (nested under `plugins`).
-All of these new keys will now support an array of plugins (similar to how the current
+The old keys will still be parsed if the new ones are unset (ie `plugins.blockchain` will take
+precedence, but `blockchain` will be read as a fallback).
+
+All of the new keys will now support an array of plugins (similar to how the current
 `tokens` key is structured). Type-specific config will always be nested in a sub-key (meaning
 the current tokens config such as `url` moves into an `fftokens` sub-key, to mirror how
 other plugins are structured). Config restrictions:
