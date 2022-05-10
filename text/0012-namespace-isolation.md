@@ -204,6 +204,12 @@ provided, which defaults to `true`. If enabled when resolving an identity, FireF
 first check against the current namespace, and then against the legacy "ff_system"
 namespace.
 
+Because DIDs must now be resolved within a namespace, the formatting of custom identities as
+`did:firefly:ns/{namespace}/{name}` is redundant, Custom identities now have a simpler DID
+of the form `did:firefly:{name}` (but legacy DIDs including the namespace will still validate).
+The character set for `name` is expanded to include `/`, so that users can define custom
+identities with a DID like `did:firefly:division/acme`.
+
 ## Local Definitions
 
 The following are all "definition" types in FireFly:
