@@ -138,6 +138,8 @@ identity:
     legacySystemIdentities: true
 ```
 
+**Plugin Config**
+
 The top-level keys for `database`, `blockchain`, `dataexchange`, `sharedstorage`, and
 `tokens` will be deprecated in favor of the new ones above (nested under `plugins`).
 The old keys will still be parsed if the new ones are unset (ie `plugins.blockchain` will take
@@ -146,11 +148,15 @@ precedence, but `blockchain` will be read as a fallback).
 All of the new keys will now support an array of plugins (similar to how the current
 `tokens` key is structured). Type-specific config will always be nested in a sub-key (meaning
 the current tokens config such as `url` moves into an `fftokens` sub-key, to mirror how
-other plugins are structured). Config restrictions:
+other plugins are structured).
+
+Config restrictions:
 * all plugin names must be fully unique on this node (any duplicate name is a config error)
 
+**Namespace Config**
+
 The `namespaces.predefined` objects will get these new sub-keys:
-* `remoteName` is the namespace name to be recorded in plugin calls, if it differs from the
+* `remoteName` is the namespace name to be sent in plugin calls, if it differs from the
   locally used name (useful for interacting with multiple shared namespaces of the same name -
   defaults to the value of `name`)
 * `networkMode` is an enum with values `shared` or `local` (defaults to `shared`)
@@ -173,6 +179,10 @@ while enabling all of the new configuration needed in this FIR.
 It will no longer be necessary to store namespaces in the database. They will be read directly
 from the config into memory. For migration purposes, any existing namespaces in the database
 will be read and merged into the config (with the config taking precedence).
+
+**Identity Manager Config**
+
+See "Identities" section below.
 
 ## Namespace APIs
 
