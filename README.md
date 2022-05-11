@@ -8,15 +8,18 @@ nav_order: 2
 
 If you want to add a feature to FireFly, you've come to the right place.
 
-This lightweight process helps you share and track your contribution, where it's as simple as adding
+This lightweight process helps you share and track your contribution, whether it's as simple as adding
 a new field to an API, or as complex as a whole new plugin.
+
+The FIR (FireFly Improvement Request) (pronounced "fire") process is intended to provide a consistent
+framework for proposing, discussing, and documenting changes to FireFly and other official project components.
 
 ## How to get started
 
 If you want to implement a new FireFly feature, create a PR to this repo copying
 [0000-template.md](0000-template.md) to `text/0000-short-feature-name.md`, and filling it out.
 
-Your choice whether you start the process before, during, or after you start coding.
+It is up to you whether you start the process before, during, or after you start coding.
 
 The community doesn't want to put you off, or slow you down. We just want to keep the community
 informed, and provide an inclusive way to let the community provide input before new features
@@ -38,13 +41,7 @@ discussion with the maintainers is enough.
 
 ### Do I really have to go through a bunch of process, just to submit some code???
 
-We'd like the FIR process light eight enough that it feels natural to raise one.
-
-If it doesn't, then please tell us and we'll try and cut out the pain.
-
-It's a great way to let people get to hear about your work!
-
-New FIRs are automatically announced on the Discord to the community.
+We'd like the FIR process to be light eight enough that it feels natural to raise one. If it doesn't, then please tell us and we'll try and cut out the pain. It's a great way to let people get to hear about your work! New FIRs are automatically announced on the Discord to the community.
 
 ### Does my FIR have to close before I can merge my PR?
 

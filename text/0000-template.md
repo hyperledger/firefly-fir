@@ -5,8 +5,7 @@ nav_order: 3
 ---
 
 - Feature Name: (fill me in with a unique identifier, my_awesome_feature)
-- FireFly Component: (fill me in with underlined FireFly component, core, orderer/consensus and etc.)
-- FireFly Issue: (leave this empty)
+- FireFly Component: (fill me in with underlined FireFly component: core, blockchain connector etc.)
 
 # Summary
 [summary]: #summary
@@ -110,7 +109,7 @@ a fuller picture.  If there is no prior art, that is fine - your ideas are
 interesting to us whether they are brand new or if it is an adaptation.
 
 Note that while precedent set by other distributed ledgers is some motivation,
-it does not on its own motivate an FIR.  Please also take into consideration
+it does not on its own motivate an FIR. Please also take into consideration
 that FireFly sometimes intentionally diverges from common distributed
 ledger/blockchain features.
 
@@ -119,9 +118,9 @@ ledger/blockchain features.
 
 > OPTIONAL - please state "n/a" if you don't think there's anything significant
 
-- Describe all dependencies that this proposal might have on other FIRs, known JIRA issues,
-Hyperledger FireFly components.  Dependencies upon FIRs or issues should be recorded as 
-links in the proposals issue itself.
+- Describe all dependencies that this proposal might have on other FIRs, GitHub issues,
+or changes in other Hyperledger FireFly components. Dependencies upon FIRs or issues
+should be recorded as links in the proposals issue itself.
 
 - List down related FIRs proposals that depend upon current FIR, and likewise make sure 
 they are also linked to this FIR.
