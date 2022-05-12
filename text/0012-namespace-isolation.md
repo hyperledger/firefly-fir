@@ -206,12 +206,12 @@ The following top-level APIs are therefore deprecated and replaced:
 ```
 /network/identities - replaced by existing /namespaces/{ns}/identities
 /network/identities/{did} - replaced by new /namespaces/{ns}/identities/{did}
-/network/diddocs/{did} - replaced by new /namespaces/{ns}/dids/{did}
 ```
 
 The following APIs are moved from the top-level to reside under `/namespaces/{ns}`:
 
 ```
+/network/diddocs/{did}
 /network/nodes
 /network/nodes/{nameOrId}
 /network/nodes/self
