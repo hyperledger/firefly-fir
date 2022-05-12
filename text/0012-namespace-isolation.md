@@ -53,7 +53,7 @@ in the core config file, and fall into two basic categories:
 **Multi-party namespace**
 
 This namespace is shared with one or more other FireFly nodes. It requires three types of communication
-plugins (blockchain, data exchange, and shared storage). Org and node identities must be claimed with
+plugins - blockchain, data exchange, and shared storage. Org and node identities must be claimed with
 an identity broadcast when joining the namespace, which establishes credentials for blockchain and
 data exchange communication. Shared objects can be defined in the namespace (such as datatypes and token
 pools), and details of them will be implicitly broadcast to other members.
@@ -66,10 +66,9 @@ Prior to this FIR, it was assumed that all namespaces were part of a single mult
 **Gateway namespace**
 
 Nothing in this namespace will be shared automatically, and no assumptions are made about whether other
-parties connected through this namespace are also using Hyperledger FireFly. There are no restrictions on which
-plugins are required (although the active plugins will determine which FireFly functionality can be exercised
-within the namespace). If any identities or definitions are created in this namespace, they will be stored in
-the local database, but will not be shared implicitly outside the node.
+parties connected through this namespace are also using Hyperledger FireFly. Plugins for data exchange and
+shared storage are currently not supported. If any identities or definitions are created in this namespace,
+they will be stored in the local database, but will not be shared implicitly outside the node.
 
 This type of namespace is mainly used when interacting directly with a blockchain, without assuming that the
 interaction needs to conform to FireFly's multi-party system model.
@@ -123,7 +122,7 @@ namespaces:
   - name: default
     remoteName: default
     description: Default predefined namespace
-    networkMode: shared
+    mode: multiparty
     org:
       key: 0x123456
     plugins:
@@ -159,7 +158,7 @@ The `namespaces.predefined` objects will get these new sub-keys:
 * `remoteName` is the namespace name to be sent in plugin calls, if it differs from the
   locally used name (useful for interacting with multiple shared namespaces of the same name -
   defaults to the value of `name`)
-* `networkMode` is an enum with values `shared` or `local` (defaults to `shared`)
+* `mode` is an enum with values `multiparty` or `gateway` (defaults to `multiparty`)
 * `org.key` is a string allowing you to override the default signing key within this namespace
 * `plugins` is an array of plugin names to be activated for this namespace (defaults to
   all available plugins if omitted)
@@ -168,8 +167,9 @@ Config restrictions:
 * `name` must be unique on this node
 * for historical reasons, "ff_system" is a reserved string and cannot be used as a `name` or `remoteName`
 * a `database` plugin is required for every namespace
-* if `networkMode: shared` is specified, plugins must include one each of `blockchain`,
+* if `mode: multiparty` is specified, plugins _must_ include one each of `blockchain`,
   `dataexchange`, and `sharedstorage`
+* if `mode: gateway` is speicified, plugins _must not_ include `dataexchange` or `sharedstorage`
 * at most one of each type of plugin is allowed per namespace, except for tokens (which
   may have many per namespace)
 
@@ -188,6 +188,12 @@ See "Identities" section below.
 
 Namespaces will now be defined only via config, so the POST API for defining new namespaces will
 be removed.
+
+## Messaging
+
+For namespaces with the new `mode: gateway` config, all messaging (broadcast and private) will
+be disabled. Determining a more direct way to interact with data exchange and shared storage
+without the assumptions made by FireFly's current messaging flows is outside the scope of this FIR.
 
 ## Identities
 
@@ -241,10 +247,10 @@ The following are all "definition" types in FireFly:
 * identity verification
 * identity update
 
-For namespaces with the new `networkMode: local` config, the APIs which create these
+For namespaces with the new `mode: gateway` config, the APIs which create these
 definitions will become an immediate local database insert, instead of performing a
-broadcast. This means restructuring the definition methods (both event senders and
-event processors) to be more easily callable from other managers.
+broadcast. Identities in this mode will not undergo any claim/verification process,
+but will be created and stored locally.
 
 ## Plugin Routing (Outbound)
 
@@ -266,9 +272,9 @@ local `name` before processing the event.
 
 ## FireFly CLI
 
-The CLI will be enhanced to support defining a default namespace with `networkMode: local`
+The CLI will be enhanced to support defining a default namespace with `mode: gateway`
 (which also implies no org/node registration). The default behavior of the CLI will continue
-to be generating a "multi-party" or "shared" namespace.
+to be generating a "multiparty" namespace.
 
 # Drawbacks
 [drawbacks]: #drawbacks
