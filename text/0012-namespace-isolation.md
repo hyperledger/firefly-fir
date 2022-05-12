@@ -308,7 +308,11 @@ isolation seems like a reasonable route.
 # Prior art
 [prior-art]: #prior-art
 
-TODO
+There are some similarities to Kubernetes namespaces:
+https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces
+
+or to PostgreSQL tablespaces:
+https://www.postgresql.org/docs/current/manage-ag-tablespaces.html
 
 # Testing
 [testing]: #testing
