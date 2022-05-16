@@ -94,9 +94,13 @@ plugins:
     type: ethereum
     ethereum:
       ethconnect:
-        instance: 0x4ae50189462b0e5d52285f59929d037f790771a6
-        topic: "0"
         url: http://ethconnect_0:8080
+        topic: "0"
+      fireflyContract:
+        - address: 0x4ae50189462b0e5d52285f59929d037f790771a6
+          fromBlock: 0
+          toBlock: 5000
+        - address: 0x3c1bef20a7858f5c2f78bda60796758d7cafff27
   dataexchange:
   - name: ffdx
     type: ffdx
@@ -131,10 +135,6 @@ namespaces:
     - ffdx
     - ipfs
     - erc20_erc721
-
-identity:
-  manager:
-    legacySystemIdentities: true
 ```
 
 **Plugin Config**
@@ -151,6 +151,17 @@ other plugins are structured).
 
 Config restrictions:
 * all plugin names must be fully unique on this node (any duplicate name is a config error)
+
+**Blockchain Config**
+
+The `ethereum` and `fabric` plugins both have a new child key for `fireflyContract`. This is
+an array of objects with an `address` or `chaincode`, and optionally `fromBlock` and `toBlock`
+numbers. If a `toBlock` is specified, events past that block will be ignored, and all event
+stream listeners will be moved to the next contract in the array. This enables migration from
+one version of the FireFly contract to a new one.
+
+The old `ethconnect.instance`, `ethconnect.fromBlock`, and `fabconnect.chaincode` keys are
+deprecated in favor of the new ones detailed above.
 
 **Namespace Config**
 
@@ -180,9 +191,17 @@ It will no longer be necessary to store namespaces in the database. They will be
 from the config into memory. For migration purposes, any existing namespaces in the database
 will be read and merged into the config (with the config taking precedence).
 
-**Identity Manager Config**
+## New FireFly Contract
 
-See "Identities" section below.
+This change introduces a new version of the FireFly contract for both Ethereum and Fabric. The new
+contract is specific to a single namespace, so it will _not_ take a `namespace` parameter to
+`pinBatch()` or emit it in the `BatchPin` event.
+
+In addition, it contains new functions `networkVersion()` and `setNetworkVersion()`. These allow
+multi-party networks to agree on the set of rules used for a given namespace. All prior versions of
+the contract (without these methods) are assumed to be "network version 1". This FIR introduces
+"network version 2", which primarily differs in how identities are resolved (see "Identities"
+section below).
 
 ## Namespace APIs
 
@@ -202,7 +221,13 @@ Org and node identities must now be broadcast on a normal namespace, instead of 
 defined on every namespace where it is to be used, and identities can only be resolved within
 a given namespace (this includes resolving DIDs).
 
-The following top-level APIs are therefore deprecated and replaced:
+Because this is a breaking change to identity resolution, existing multi-party networks will need
+to migrate to the new identity rules all at once. This will be handled by deploying a new instance
+of the FireFly contract that specifies "network version 2", and editing all member nodes' config
+files to specify the block number at which the nodes will migrate from the old contract to the
+new one (see preceding sections on config and contract changes).
+
+The following top-level APIs are deprecated and replaced:
 ```
 /network/identities - replaced by existing /namespaces/{ns}/identities
 /network/identities/{did} - replaced by new /namespaces/{ns}/identities/{did}
@@ -221,10 +246,10 @@ The following APIs are moved from the top-level to reside under `/namespaces/{ns
 /status
 ```
 
-For backwards-compatibility, a new `identity.manager.legacySystemIdentities` config is
-provided, which defaults to `true`. If enabled when resolving an identity, FireFly will
-first check against the current namespace, and then against the legacy "ff_system"
-namespace.
+For networks operating in "network version 1", FireFly will fall back to resolve identities
+against the legacy "ff_system" namespace (if they are not found in the current namespace).
+For networks operating in "network version 2", all identities must have been broadcast on
+a namespace before using them within that namespace.
 
 Because DIDs must now be resolved within a namespace, the formatting of custom identities as
 `did:firefly:ns/{namespace}/{name}` is redundant, Custom identities now have a simpler DID
