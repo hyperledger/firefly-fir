@@ -155,12 +155,15 @@ Config restrictions:
 **Blockchain Config**
 
 The `ethereum` and `fabric` plugins both have a new child key for `fireflyContract`. This is
-an array of objects with an `address` or `chaincode`, and optionally `fromBlock` and `toBlock`
-numbers. If a `toBlock` is specified, events past that block will be ignored, and all event
-stream listeners will be moved to the next contract in the array. This enables migration from
-one version of the FireFly contract to a new one.
+an array of objects with an `address` (for Ethereum) or `chaincode` (for Fabric), and optionally
+a `fromBlock` number. By default, the blockchain plugin will interact with the first contract in
+the list.
 
-The old `ethconnect.instance`, `ethconnect.fromBlock`, and `fabconnect.chaincode` keys are
+A new `/network/migrate` API will send a blockchain transaction that signals all network members
+to unsubscribe from their current contract and move to the next one configured in the contract
+list.
+
+The old `ethconnect.instance`, `ethconnect.fromBlock`, and `fabconnect.chaincode` config keys are
 deprecated in favor of the new ones detailed above.
 
 **Namespace Config**
