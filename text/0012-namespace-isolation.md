@@ -7,16 +7,21 @@
 # Summary
 [summary]: #summary
 
-Namespaces are a grouping construct for FireFly definitions, messages, token pools, and other objects.
-They allow applications to segregate different buckets of data and functionality. However, these namespaces
-are not fully isolated. They currently must share a set of plugins (a single database, blockchain, etc),
-and they implicitly depend on a special "ff_system" namespace where global state is shared with network members.
+Namespaces are a grouping construct for most of the objects within FireFly (messages, data, tokens, etc).
+They allow applications to segregate different buckets of data and functionality.
+However, there are a few global items shared between namespaces - such as a single database and a single
+blockchain - as well as a special "ff_system" namespace used to broadcast pieces of global state.
 
-To support more flexible use cases, namespaces will be extended with two additional options:
-- a list of plugins (blockchain, database, data exchange, shared storage, and tokens) per namespace
-- an option to control if FireFly definitions are implicitly broadcast to other namespace members
+To support more flexible use cases, namespaces will be extended so that every piece of FireFly's
+configuration can be different per namespace. Specifically, this means each namespace can be configured
+with a different set of plugins, all previously "global" operations will instead happen within the context
+of a namespace, and the special "ff_system" namespace will be removed.
 
-In addition, the special "ff_system" namespace will be removed.
+In addition, namespaces will now be configurable into two different modes. "Multi-party" namespaces are
+similar to the current mode of operation and can leverage all of FireFly's capabilities, including
+communicating and syncing state with other FireFly nodes in a network via on- and off-chain messaging.
+"Gateway" namespaces are a new variant, which assume no knowledge of other nodes and have no FireFly
+messaging capabilities, but can still be used for executing blockchain and token operations.
 
 # Motivation
 [motivation]: #motivation
@@ -83,14 +88,14 @@ Plugins and namespaces are configured as follows:
 ```
 plugins:
   database:
-  - name: sqlite3
+  - name: database0
     type: sqlite3
     sqlite3:
       migrations:
         auto: true
       url: /etc/firefly/db?_busy_timeout=5000
   blockchain:
-  - name: ethereum
+  - name: blockchain0
     type: ethereum
     ethereum:
       ethconnect:
@@ -99,15 +104,15 @@ plugins:
       fireflyContract:
         - address: 0x4ae50189462b0e5d52285f59929d037f790771a6
           fromBlock: 0
-          toBlock: 5000
         - address: 0x3c1bef20a7858f5c2f78bda60796758d7cafff27
+          fromBlock: 5000
   dataexchange:
-  - name: ffdx
+  - name: dataexchange0
     type: ffdx
     ffdx:
       url: http://dataexchange_0:3000
   sharedstorage:
-  - name: ipfs
+  - name: sharedstorage0
     type: ipfs
     ipfs:
       api:
@@ -126,15 +131,13 @@ namespaces:
   - name: default
     remoteName: default
     description: Default predefined namespace
-    mode: multiparty
-    org:
-      key: 0x123456
-    plugins:
-    - sqlite3
-    - ethereum
-    - ffdx
-    - ipfs
-    - erc20_erc721
+    plugins: [database0, blockchain0, dataexchange0, sharedstorage0, erc20_erc721]
+    multiparty:
+      enabled: true
+      org:
+        name: org0
+        description: org0
+        key: 0x123456
 ```
 
 **Plugin Config**
@@ -144,10 +147,9 @@ The top-level keys for `database`, `blockchain`, `dataexchange`, `sharedstorage`
 The old keys will still be parsed if the new ones are unset (ie `plugins.blockchain` will take
 precedence, but `blockchain` will be read as a fallback).
 
-All of the new keys will now support an array of plugins (similar to how the current
-`tokens` key is structured). Type-specific config will always be nested in a sub-key (meaning
-the current tokens config such as `url` moves into an `fftokens` sub-key, to mirror how
-other plugins are structured).
+All of the new keys will now support an array of plugins. Each array entry will have a `name`
+and `type`, and sub-keys for each possible type (so database plugins have sub-keys for
+`sqlite3` and `postgres`, tokens plugins only have a sub-key for `fftokens`, etc).
 
 Config restrictions:
 * all plugin names must be fully unique on this node (any duplicate name is a config error)
@@ -159,9 +161,10 @@ an array of objects with an `address` (for Ethereum) or `chaincode` (for Fabric)
 a `fromBlock` number. By default, the blockchain plugin will interact with the first contract in
 the list.
 
-A new `/network/migrate` API will send a blockchain transaction that signals all network members
-to unsubscribe from their current contract and move to the next one configured in the contract
-list.
+A new `/network/action` API is added, with a single supported action expressed as
+`{"type": "terminate"}`. This action will send a special blockchain transaction that signals all
+network members to unsubscribe from their current contract and move to the next one configured in
+the contract list.
 
 The old `ethconnect.instance`, `ethconnect.fromBlock`, and `fabconnect.chaincode` config keys are
 deprecated in favor of the new ones detailed above.
@@ -172,8 +175,9 @@ The `namespaces.predefined` objects will get these new sub-keys:
 * `remoteName` is the namespace name to be sent in plugin calls, if it differs from the
   locally used name (useful for interacting with multiple shared namespaces of the same name -
   defaults to the value of `name`)
-* `mode` is an enum with values `multiparty` or `gateway` (defaults to `multiparty`)
-* `org.key` is a string allowing you to override the default signing key within this namespace
+* `multiparty.enabled` controls if multi-party mode is enabled - defaults to true if an org key or
+  org name is defined on this namespace _or_ at the root of the config file
+* `multiparty.org` is the root org identity for this multi-party namespace
 * `plugins` is an array of plugin names to be activated for this namespace (defaults to
   all available plugins if omitted)
 
@@ -181,9 +185,9 @@ Config restrictions:
 * `name` must be unique on this node
 * for historical reasons, "ff_system" is a reserved string and cannot be used as a `name` or `remoteName`
 * a `database` plugin is required for every namespace
-* if `mode: multiparty` is specified, plugins _must_ include one each of `blockchain`,
+* if `multiparty.enabled` is true, plugins _must_ include one each of `blockchain`,
   `dataexchange`, and `sharedstorage`
-* if `mode: gateway` is speicified, plugins _must not_ include `dataexchange` or `sharedstorage`
+* if `multiparty.enabled` is false, plugins _must not_ include `dataexchange` or `sharedstorage`
 * at most one of each type of plugin is allowed per namespace, except for tokens (which
   may have many per namespace)
 
@@ -200,11 +204,16 @@ This change introduces a new version of the FireFly contract for both Ethereum a
 contract is specific to a single namespace, so it will _not_ take a `namespace` parameter to
 `pinBatch()` or emit it in the `BatchPin` event.
 
-In addition, it contains new functions `networkVersion()` and `setNetworkVersion()`. These allow
+In addition, it contains a new function `networkVersion()`. This allow
 multi-party networks to agree on the set of rules used for a given namespace. All prior versions of
 the contract (without these methods) are assumed to be "network version 1". This FIR introduces
 "network version 2", which primarily differs in how identities are resolved (see "Identities"
 section below).
+
+## Admin Config API
+
+Because it represents global state and was not widely adopted, the admin API for modifying config
+values via HTTP will be removed. Config will only be read from the config file.
 
 ## Namespace APIs
 
@@ -213,7 +222,7 @@ be removed.
 
 ## Messaging
 
-For namespaces with the new `mode: gateway` config, all messaging (broadcast and private) will
+For gateway namespaces (ie `multiparty.enabled = false`), all messaging (broadcast and private) will
 be disabled. Determining a more direct way to interact with data exchange and shared storage
 without the assumptions made by FireFly's current messaging flows is outside the scope of this FIR.
 
@@ -225,7 +234,7 @@ defined on every namespace where it is to be used, and identities can only be re
 a given namespace (this includes resolving DIDs).
 
 Because this is a breaking change to identity resolution, existing multi-party networks will need
-to migrate to the new identity rules all at once. This will be handled by deploying a new instance
+to migrate to the new identity rules together. This will be handled by deploying a new instance
 of the FireFly contract that specifies "network version 2", and editing all member nodes' config
 files to specify the block number at which the nodes will migrate from the old contract to the
 new one (see preceding sections on config and contract changes).
@@ -273,16 +282,24 @@ The following are all "definition" types in FireFly:
 * identity verification
 * identity update
 
-For namespaces with the new `mode: gateway` config, the APIs which create these
+For gateway namespaces, the APIs which create these
 definitions will become an immediate local database insert, instead of performing a
-broadcast. Identities in this mode will not undergo any claim/verification process,
-but will be created and stored locally.
+broadcast. Additional caveats:
+* identities in this mode will not undergo any claim/verification process,
+  but will be created and stored locally
+* datatypes and groups will not be supported, as they are only useful in the context
+  of messaging (which is disabled in gateway namespaces)
+
+## Namespace Manager
+
+A new component called Namespace Manager is introduced, at a level above Orchestrator.
+The Namespace Manager will parse and validate the plugin and namespace config, then
+create a separate Orchestrator for each namespace (along with separate instances of
+every plugin and manager needed by that namespace).
 
 ## Plugin Routing (Outbound)
 
-Nearly every manager call will now have a pre-flight namespace lookup to determine the
-plugin that will handle it, instead of being able to rely on statically configured
-plugins. If a namespace does not have active plugins of the type(s) needed for a
+If a namespace does not have active plugins of the type(s) needed for a
 particular request, it will reject with HTTP 400.
 
 If the namespace has a `remoteName` configured, it will be substituted in before calling
@@ -290,15 +307,12 @@ out to the plugin.
 
 ## Event Routing (Inbound)
 
-Each namespace+plugin combo will represent a unique event listener loop (might mean
-many copies of the same loop, if a plugin is shared across multiple namespaces).
-
-If the namespace has a `remoteName` configured, the event loop will substitute in the
+If the namespace has a `remoteName` configured, the event manager will substitute in the
 local `name` before processing the event.
 
 ## FireFly CLI
 
-The CLI will be enhanced to support defining a default namespace with `mode: gateway`
+The CLI will be enhanced to support defining a default namespace without multiparty mode enabled
 (which also implies no org/node registration). The default behavior of the CLI will continue
 to be generating a "multiparty" namespace.
 
