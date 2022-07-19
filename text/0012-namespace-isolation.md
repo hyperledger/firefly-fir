@@ -53,7 +53,7 @@ These changes will allow namespaces to be both more flexible and more clearly is
 [guide-level-explanation]: #guide-level-explanation
 
 Namespaces are a construct for segregating data and operations from FireFly's perspective. They are defined
-in the core config file, and fall into two basic categories:
+in the core config file, and can be thought of in two basic categories:
 
 **Gateway namespace**
 
@@ -68,8 +68,8 @@ interaction needs to conform to FireFly's multi-party system model.
 **Multi-party namespace**
 
 This namespace is shared with one or more other FireFly nodes. It requires three types of communication
-plugins - blockchain, data exchange, and shared storage. Org and node identities must be claimed with
-an identity broadcast when joining the namespace, which establishes credentials for blockchain and
+plugins - blockchain, data exchange, and shared storage. Organization and node identities must be claimed
+with an identity broadcast when joining the namespace, which establishes credentials for blockchain and
 data exchange communication. Shared objects can be defined in the namespace (such as datatypes and token
 pools), and details of them will be implicitly broadcast to other members.
 
@@ -116,6 +116,7 @@ plugins:
         url: http://ipfs_0:8080
   tokens:
   - name: erc20_erc721
+    remoteName: erc20_erc721
     type: fftokens
     fftokens:
       url: http://tokens_0_0:3000
@@ -154,19 +155,21 @@ All of the new keys will now support an array of plugins. Each array entry will 
 and `type`, and sub-keys for each possible type (so database plugins have sub-keys for
 `sqlite3` and `postgres`, tokens plugins only have a sub-key for `fftokens`, etc).
 
+The `tokens` plugins support an additional `remoteName` field. If specified, this name will be
+used when defining token pools in a multiparty namespace, and it must agree between all members
+of the multi-party system (it is not relevant for non-multiparty namespaces). If unspecified,
+it defaults to the value of `name`.
+
 Config restrictions:
 * all plugin names must be fully unique on this node (any duplicate name is a config error)
+* the `remoteName` for a tokens plugin must be unique from any other tokens plugin
 
 **Blockchain Config**
 
-A new `/network/action` API is added, with a single supported action expressed as
-`{"type": "terminate"}`. This action will send a special blockchain transaction that signals all
-network members to unsubscribe from their current contract and move to the next one configured in
-the contract list.
-
 The configuration options that referece FireFly's multiparty contract (`ethconnect.instance`,
-`ethconnect.fromBlock`, and `fabconnect.chaincode`) are deprecated in favor of new multiparty-specific
-keys detailed in the next section (but the old config will still be read as a fallback).
+`ethconnect.fromBlock`, and `fabconnect.chaincode`) are deprecated in favor of new
+multiparty-specific keys under each namespace, as detailed in the next section (but the old
+config will still be read as a fallback).
 
 **Namespace Config**
 
@@ -201,9 +204,8 @@ Config restrictions:
 This should allow for graceful deprecation and sensible defaults when parsing old config files,
 while also enabling all of the new configuration needed in this FIR.
 
-It will no longer be necessary to store namespaces in the database. They will be read directly
-from the config into memory. For migration purposes, any existing namespaces in the database
-will be read and merged into the config (with the config taking precedence).
+All namespaces must now be called out in the config file in order to be valid. Namespaces found in
+the database but _not_ represented in the config file will be ignored.
 
 **Org Config**
 
@@ -214,23 +216,39 @@ detailed above (but the old config will be honored for every multiparty namespac
 
 This change introduces a new version of the FireFly contract for both Ethereum and Fabric. The new
 contract is specific to a single namespace, so it will _not_ take a `namespace` parameter to
-`pinBatch()` or emit it in the `BatchPin` event.
+`pinBatch()` or emit it in the `BatchPin` event. It also introduces a new `networkAction()` method,
+which also emits `BatchPin` (parameters are assigned different meanings, but usage of the single
+event makes ordering easier).
 
-In addition, it contains a new function, `networkVersion()`. This allows
-multi-party networks to agree on the set of rules used for a given namespace. All prior versions of
+In addition, the contract contains a new queryable function, `networkVersion()`. This allows
+multiparty networks to agree on the set of rules used for a given namespace. All prior versions of
 the contract (without these methods) are assumed to be "network version 1". This FIR introduces
 "network version 2", which differs in the signature of BatchPin as detailed above, and in how
 identities are resolved (see "Identities" section below).
 
-## Admin Config API
+A new `/network/action` API is added, with a single supported action expressed as
+`{"type": "terminate"}`. This action will send a special blockchain transaction that signals all
+network members to unsubscribe from their current contract and move to the next one configured in
+the contract list. When invoked with a "version 1" contract, it calls `pinBatch()` with special
+parameters to identify the action. When invoked with a "verison 2" contract, it calls `networkAction()`.
 
-Because it represents global state and was not widely adopted, the admin API for modifying config
+## Config SPI
+
+Because it represents global state and was not widely adopted, the admin SPI for modifying config
 values via HTTP will be removed. Config will only be read from the config file.
+
+The `/config/reset` call is renamed to simply `/reset`, but continues to be available as an
+administrative way to perform a "soft reset" and pick up new configuration (including adding or
+removing namespaces in the config).
 
 ## Namespace APIs
 
 Namespaces will now be defined only via config, so the POST API for defining new namespaces will
 be removed.
+
+The returned bodies from `/namespaces`, `/namespaces/{ns}`, and `/namespaces/{ns}/status` are also
+tweaked slightly. More details about the multiparty contract are now available, but all information
+related to messages/broadcasting of namespaces is removed.
 
 ## Messaging
 
