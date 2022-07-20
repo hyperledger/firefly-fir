@@ -156,8 +156,8 @@ and `type`, and sub-keys for each possible type (so database plugins have sub-ke
 `sqlite3` and `postgres`, tokens plugins only have a sub-key for `fftokens`, etc).
 
 The `tokens` plugins support an additional `remoteName` field. If specified, this name will be
-used when defining token pools in a multiparty namespace, and it must agree between all members
-of the multi-party system (it is not relevant for non-multiparty namespaces). If unspecified,
+used when defining token pools in a multi-party namespace, and it must agree between all members
+of the multi-party system (it is not relevant for non-multi-party namespaces). If unspecified,
 it defaults to the value of `name`.
 
 Config restrictions:
@@ -166,9 +166,9 @@ Config restrictions:
 
 **Blockchain Config**
 
-The configuration options that referece FireFly's multiparty contract (`ethconnect.instance`,
+The configuration options that referece FireFly's multi-party contract (`ethconnect.instance`,
 `ethconnect.fromBlock`, and `fabconnect.chaincode`) are deprecated in favor of new
-multiparty-specific keys under each namespace, as detailed in the next section (but the old
+multi-party-specific keys under each namespace, as detailed in the next section (but the old
 config will still be read as a fallback).
 
 **Namespace Config**
@@ -177,7 +177,7 @@ The `namespaces.predefined` objects will get these new sub-keys:
 * `remoteName` is the namespace name to be sent in plugin calls, if it differs from the
   locally used name (useful for interacting with multiple shared namespaces of the same name -
   defaults to the value of `name`)
-* `defaultKey` is a blockchain key used to sign transactions when none is specified (in multiparty mode,
+* `defaultKey` is a blockchain key used to sign transactions when none is specified (in multi-party mode,
   defaults to the org key)
 * `plugins` is an array of plugin names to be activated for this namespace (defaults to
   all available plugins if omitted)
@@ -185,7 +185,7 @@ The `namespaces.predefined` objects will get these new sub-keys:
   org name is defined on this namespace _or_ in the deprecated `org` section at the root)
 * `multiparty.org` is the root org identity for this multi-party namespace (containing `name`,
   `description`, and `key`)
-* `multiparty.contract` is an array of objects describing the location(s) of a FireFly multiparty
+* `multiparty.contract` is an array of objects describing the location(s) of a FireFly multi-party
   smart contract. Its children are blockchain-agnostic `location` and `firstEvent` fields, with formats
   identical to the same fields on custom contract interfaces and contract listeners. The blockchain plugin
   will interact with the first contract in the list until instructions are received to terminate it and
@@ -210,11 +210,11 @@ the database but _not_ represented in the config file will be ignored.
 **Org Config**
 
 The `org` section at the root is deprecated in favor of the per-namespace `multiparty.org` section
-detailed above (but the old config will be honored for every multiparty namespace as a fallback).
+detailed above (but the old config will be honored for every multi-party namespace as a fallback).
 
 ## New FireFly Contract
 
-This change introduces a new version of the FireFly multiparty contract for both Ethereum and Fabric,
+This change introduces a new version of the FireFly multi-party contract for both Ethereum and Fabric,
 along with a method of versioning the contract. The prior version of the contract is designated as
 "network version 1", while this new version is designated "network version 2". Differences between
 the versions are described below.
@@ -225,17 +225,22 @@ the versions are described below.
 * Multiple namespaces may share a single contract deployment.
 * There is no way to query network version (the lack of a version method implies V1).
 * The new "network action" functionality (see below) is exercised by sending marker parameters through `pinBatch`.
+* In FireFly v1.0.x and earlier, multi-party identities must be pinned with the special "ff_system" namespace.
+* In FireFly v1.1.0 and later, multi-party identities may be pinned either with "ff_system" or the namespace on which they are used.
 
 **Network Version 2**
 
 * `pinBatch()` takes 4 parameters (namespace is omitted). It emits the `BatchPin` event.
-* Separate namespaces should use separate contract deployments.
+* Separate namespaces should use separate contract deployments (all batches on a given contract are implicitly part of one namespace).
 * `networkVersion()` method is added to return an integer for the version.
 * `networkAction()` is added for invoking network actions. For ordering and backwards compatibility, it still emits `BatchPin`.
+* Not compatible with FireFly v1.0.x or earlier.
+* Multi-party identities must be pinned with the namespace on which they are used.
 
-The contract intentionally still has a single `BatchPin` event, which is used both for recording actual
-batches, and for recording network actions (by repurposing some of the parameters). This is primarily
-because existing ethconnect/fabconnect connectors do not guarantee strong ordering across separate events.
+As noted above, the contract intentionally still has a single `BatchPin` event, which is used both for
+recording actual batches, and for recording network actions (by repurposing some of the parameters). This
+is primarily because existing ethconnect/fabconnect connectors do not guarantee strong ordering across
+separate events.
 
 A new `/network/action` API is added, with a single supported action expressed as
 `{"type": "terminate"}`. This action will send a special blockchain transaction that signals all
@@ -257,14 +262,14 @@ Namespaces will now be defined only via config, so the POST API for defining new
 be removed.
 
 The returned bodies from `/namespaces`, `/namespaces/{ns}`, and `/namespaces/{ns}/status` are also
-tweaked slightly. More details about the multiparty contract are now available, but all information
+tweaked slightly. More details about the multi-party contract are now available, but all information
 related to messages/broadcasting of namespaces is removed.
 
 ## Messaging
 
-For gateway namespaces (ie `multiparty.enabled = false`), all messaging (broadcast and private) will
-be disabled. Determining a more direct way to interact with data exchange and shared storage
-without the assumptions made by FireFly's current messaging flows is outside the scope of this FIR.
+For non-multi-party namespaces, all messaging (broadcast and private) will be disabled. Determining
+a more direct way to interact with data exchange and shared storage without the assumptions made by
+FireFly's current messaging flows is outside the scope of this FIR.
 
 ## Identities
 
@@ -332,12 +337,12 @@ The following are all "definition" types in FireFly:
 * identity verification
 * identity update
 
-For gateway namespaces, the APIs which create these definitions will become an immediate
+For non-multi-party namespaces, the APIs which create these definitions will become an immediate
 local database insert, instead of performing a broadcast. Additional caveats:
 * identities in this mode will not undergo any claim/verification process,
   but will be created and stored locally
 * datatypes and groups will not be supported, as they are only useful in the context
-  of messaging (which is disabled in gateway namespaces)
+  of messaging (which is disabled in non-multi-party namespaces)
 
 ## Namespace Manager
 
@@ -359,11 +364,15 @@ out to the plugin.
 If the namespace has a `remoteName` configured, the event manager will substitute in the
 local `name` before processing the event.
 
+If an event cannot be mapped to a known namespace, it will be ignored.
+
 ## FireFly CLI
 
-The CLI will be enhanced to support defining a default namespace without multiparty mode enabled
-(which also implies no org/node registration). The default behavior of the CLI will continue
-to be generating a "multiparty" namespace.
+The CLI supports a new flag `--multiparty=false` to define a default namespace without multi-party
+mode enabled. This will result in a single namespace with only the configured blockchain and token
+plugins (no data exchange or shared storage).
+
+The default behavior of the CLI will continue to be generating a multi-party namespace.
 
 # Drawbacks
 [drawbacks]: #drawbacks
@@ -380,10 +389,7 @@ problems via invalid config.
 
 Removing the ability to dynamically broadcast new namespaces may introduce a burden if
 any users rely on this functionality to define namespaces without editing the
-config on every node. Adding back this requirement in the new landscape would require
-some notion of "child" namespaces that can be created via a
-broadcast on an existing multi-party namespace (not currently in scope for
-this FIR).
+config on every node.
 
 # Rationale and alternatives
 [alternatives]: #alternatives
@@ -421,5 +427,4 @@ switching to query the default namespace when a namespace is omitted from the UR
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
-* Currently the names configured for tokens plugins must agree across all members of a consortium. It
-  would be nice to remove this restriction as part of this change.
+None at this time
