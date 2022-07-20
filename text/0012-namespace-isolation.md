@@ -225,8 +225,9 @@ the versions are described below.
 * Multiple namespaces may share a single contract deployment.
 * There is no way to query network version (the lack of a version method implies V1).
 * The new "network action" functionality (see below) is exercised by sending marker parameters through `pinBatch`.
-* In FireFly v1.0.x and earlier, multi-party identities must be pinned with the special "ff_system" namespace.
-* In FireFly v1.1.0 and later, multi-party identities may be pinned either with "ff_system" or the namespace on which they are used.
+* _Identity resolution rules:_  In FireFly v1.0.x and earlier, multi-party identities must be pinned with the
+special "ff_system" namespace. In FireFly v1.1.0 and later, multi-party identities may be pinned either
+with "ff_system" or the namespace on which they are used.
 
 **Network Version 2**
 
@@ -235,7 +236,7 @@ the versions are described below.
 * `networkVersion()` method is added to return an integer for the version.
 * `networkAction()` is added for invoking network actions. For ordering and backwards compatibility, it still emits `BatchPin`.
 * Not compatible with FireFly v1.0.x or earlier.
-* Multi-party identities must be pinned with the namespace on which they are used.
+* _Identity resolution rules:_ Multi-party identities must be pinned with the namespace on which they are used.
 
 As noted above, the contract intentionally still has a single `BatchPin` event, which is used both for
 recording actual batches, and for recording network actions (by repurposing some of the parameters). This
