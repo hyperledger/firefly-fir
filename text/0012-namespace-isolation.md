@@ -214,23 +214,33 @@ detailed above (but the old config will be honored for every multiparty namespac
 
 ## New FireFly Contract
 
-This change introduces a new version of the FireFly contract for both Ethereum and Fabric. The new
-contract is specific to a single namespace, so it will _not_ take a `namespace` parameter to
-`pinBatch()` or emit it in the `BatchPin` event. It also introduces a new `networkAction()` method,
-which also emits `BatchPin` (parameters are assigned different meanings, but usage of the single
-event makes ordering easier).
+This change introduces a new version of the FireFly multiparty contract for both Ethereum and Fabric,
+along with a method of versioning the contract. The prior version of the contract is designated as
+"network version 1", while this new version is designated "network version 2". Differences between
+the versions are described below.
 
-In addition, the contract contains a new queryable function, `networkVersion()`. This allows
-multiparty networks to agree on the set of rules used for a given namespace. All prior versions of
-the contract (without these methods) are assumed to be "network version 1". This FIR introduces
-"network version 2", which differs in the signature of BatchPin as detailed above, and in how
-identities are resolved (see "Identities" section below).
+**Network Version 1**
+
+* `pinBatch()` takes 5 parameters, one of which is a namespace in clear text. It emits the `BatchPin` event.
+* Multiple namespaces may share a single contract deployment.
+* There is no way to query network version (the lack of a version method implies V1).
+* The new "network action" functionality (see below) is exercised by sending marker parameters through `pinBatch`.
+
+**Network Version 2**
+
+* `pinBatch()` takes 4 parameters (namespace is omitted). It emits the `BatchPin` event.
+* Separate namespaces should use separate contract deployments.
+* `networkVersion()` method is added to return an integer for the version.
+* `networkAction()` is added for invoking network actions. For ordering and backwards compatibility, it still emits `BatchPin`.
+
+The contract intentionally still has a single `BatchPin` event, which is used both for recording actual
+batches, and for recording network actions (by repurposing some of the parameters). This is primarily
+because existing ethconnect/fabconnect connectors do not guarantee strong ordering across separate events.
 
 A new `/network/action` API is added, with a single supported action expressed as
 `{"type": "terminate"}`. This action will send a special blockchain transaction that signals all
 network members to unsubscribe from their current contract and move to the next one configured in
-the contract list. When invoked with a "version 1" contract, it calls `pinBatch()` with special
-parameters to identify the action. When invoked with a "verison 2" contract, it calls `networkAction()`.
+the contract list.
 
 ## Config SPI
 
