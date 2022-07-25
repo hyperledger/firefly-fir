@@ -297,7 +297,7 @@ The following top-level APIs are moved (due to perceived lower usage of these ro
 the old paths are removed instead of being deprecated):
 ```
 /status/pins - moved to /namespaces/{ns}/pins
-/status/websockets - moved to /namespaces/{ns}/websockets
+/status/websockets - moved to /websockets
 ```
 
 The following APIs are moved from the top-level to reside under `/namespaces/{ns}`:
