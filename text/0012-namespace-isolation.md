@@ -9,8 +9,8 @@
 
 Namespaces are a grouping construct for most of the objects within FireFly (messages, data, tokens, etc).
 They allow applications to segregate different buckets of data and functionality.
-However, there are a few global items shared between namespaces - such as a single database and a single
-blockchain - as well as a special "ff_system" namespace used to broadcast pieces of global state.
+However, there are currently a few global items shared between namespaces - such as a single database and
+a single blockchain - as well as a special "ff_system" namespace used to broadcast pieces of global state.
 
 To support more flexible use cases, namespaces will be extended so that every piece of FireFly's
 configuration can be different per namespace. Specifically, this means each namespace can be configured
@@ -21,7 +21,8 @@ In addition, "multi-party" mode will become an optional feature for each namespa
 mode is not enabled, a namespace can operate as a simple gateway for interacting with a blockchain. When
 multi-party mode is enabled, the namespace is assumed to be shared with one or more other FireFly nodes,
 and can leverage all of FireFly's capabilities for communicating and syncing state via on- and off-chain
-messaging.
+messaging. Additionally, each multi-party namespace can be configured with its own local identity, allowing
+a single FireFly supernode to support multi-tenancy within the network.
 
 # Motivation
 [motivation]: #motivation
@@ -59,7 +60,7 @@ in the core config file, and can be thought of in two basic categories:
 
 Nothing in this namespace will be shared automatically, and no assumptions are made about whether other
 parties connected through this namespace are also using Hyperledger FireFly. Plugins for data exchange and
-shared storage are currently not supported. If any identities or definitions are created in this namespace,
+shared storage are not supported. If any identities or definitions are created in this namespace,
 they will be stored in the local database, but will not be shared implicitly outside the node.
 
 This type of namespace is mainly used when interacting directly with a blockchain, without assuming that the
@@ -70,7 +71,7 @@ interaction needs to conform to FireFly's multi-party system model.
 This namespace is shared with one or more other FireFly nodes. It requires three types of communication
 plugins - blockchain, data exchange, and shared storage. Organization and node identities must be claimed
 with an identity broadcast when joining the namespace, which establishes credentials for blockchain and
-data exchange communication. Shared objects can be defined in the namespace (such as datatypes and token
+off-chain communication. Shared objects can be defined in the namespace (such as datatypes and token
 pools), and details of them will be implicitly broadcast to other members.
 
 This type of namespace is used when multiple parties need to share on- and off-chain data and agree upon
@@ -135,19 +136,22 @@ namespaces:
         name: org0
         description: org0
         key: 0x123456
+      node:
+        name: node0
+        description: node0
       contract:
         - location:
             address: 0x4ae50189462b0e5d52285f59929d037f790771a6
-          fromBlock: 0
+          firstEvent: 0
         - location:
             address: 0x3c1bef20a7858f5c2f78bda60796758d7cafff27
-          fromBlock: 5000
+          firstEvent: 5000
 ```
 
 **Plugin Config**
 
 The top-level keys for `database`, `blockchain`, `dataexchange`, `sharedstorage`, and
-`tokens` will be deprecated in favor of the new ones above (nested under `plugins`).
+`tokens` will be deprecated in favor of the new ones shown above (nested under `plugins`).
 The old keys will still be parsed if the new ones are unset (ie `plugins.blockchain` will take
 precedence, but `blockchain` will be read as a fallback).
 
@@ -185,6 +189,8 @@ The `namespaces.predefined` objects will get these new sub-keys:
   org name is defined on this namespace _or_ in the deprecated `org` section at the root)
 * `multiparty.org` is the root org identity for this multi-party namespace (containing `name`,
   `description`, and `key`)
+* `multiparty.node` is the local node identity for this multi-party namespace (containing `name` and
+  `description`)
 * `multiparty.contract` is an array of objects describing the location(s) of a FireFly multi-party
   smart contract. Its children are blockchain-agnostic `location` and `firstEvent` fields, with formats
   identical to the same fields on custom contract interfaces and contract listeners. The blockchain plugin
@@ -207,10 +213,14 @@ while also enabling all of the new configuration needed in this FIR.
 All namespaces must now be called out in the config file in order to be valid. Namespaces found in
 the database but _not_ represented in the config file will be ignored.
 
-**Org Config**
+**Org/Node Config**
 
-The `org` section at the root is deprecated in favor of the per-namespace `multiparty.org` section
-detailed above (but the old config will be honored for every multi-party namespace as a fallback).
+The `org` and `node` sections at the root iare deprecated in favor of the per-namespace `multiparty.org`
+and `multiparty.node` sections detailed above (but the old config will be honored for every multi-party
+namespace as a fallback).
+
+By allowing different `org` and `node` identities to be used on each namespace, this enables a mode of
+multi-tenancy wherein a single FireFly supernode can contain many logical "nodes".
 
 ## New FireFly Contract
 
@@ -243,7 +253,7 @@ recording actual batches, and for recording network actions (by repurposing some
 is primarily because existing ethconnect/fabconnect connectors do not guarantee strong ordering across
 separate events.
 
-A new `/network/action` API is added, with a single supported action expressed as
+A new `/network/action` API is added to FireFly, with a single supported action expressed as
 `{"type": "terminate"}`. This action will send a special blockchain transaction that signals all
 network members to unsubscribe from their current contract and move to the next one configured in
 the contract list.
@@ -263,7 +273,7 @@ Namespaces will now be defined only via config, so the POST API for defining new
 be removed.
 
 The returned bodies from `/namespaces`, `/namespaces/{ns}`, and `/namespaces/{ns}/status` are also
-tweaked slightly. More details about the multi-party contract are now available, but all information
+altered slightly. More details about the multi-party contract are now available, but all information
 related to messages/broadcasting of namespaces is removed.
 
 ## Messaging
@@ -326,7 +336,7 @@ of the form `did:firefly:{name}` (but legacy DIDs including the namespace will s
 ## Local Definitions
 
 The following are all "definition" types in FireFly:
-* namespace (to be removed)
+* namespace (removed)
 * datatype
 * group
 * token pool
@@ -357,13 +367,14 @@ every manager needed by that namespace). Plugins may be shared across many names
 If a namespace does not have active plugins of the type(s) needed for a
 particular request, it will reject with HTTP 400.
 
-If the namespace has a `remoteName` configured, it will be substituted in before calling
-out to the plugin.
+For plugin calls that include a namespace (data exchange, or blockchain batches in network
+version 1), if the namespace has a `remoteName` configured, it will be substituted instead
+of the local namespace when the data is written out via the plugin.
 
 ## Event Routing (Inbound)
 
-If the namespace has a `remoteName` configured, the event manager will substitute in the
-local `name` before processing the event.
+Plugins will map all events to the correct orchestrator/event manager to handle them,
+based on the namespace and other information in the event.
 
 If an event cannot be mapped to a known namespace, it will be ignored.
 
