@@ -117,7 +117,7 @@ plugins:
         url: http://ipfs_0:8080
   tokens:
   - name: erc20_erc721
-    remoteName: erc20_erc721
+    broadcastName: erc20_erc721
     type: fftokens
     fftokens:
       url: http://tokens_0_0:3000
@@ -126,12 +126,12 @@ namespaces:
   default: default
   predefined:
   - name: default
-    remoteName: default
     description: Default predefined namespace
     defaultKey: 0x123456
     plugins: [database0, blockchain0, dataexchange0, sharedstorage0, erc20_erc721]
     multiparty:
       enabled: true
+      networkNamespace: default
       org:
         name: org0
         description: org0
@@ -159,14 +159,14 @@ All of the new keys will now support an array of plugins. Each array entry will 
 and `type`, and sub-keys for each possible type (so database plugins have sub-keys for
 `sqlite3` and `postgres`, tokens plugins only have a sub-key for `fftokens`, etc).
 
-The `tokens` plugins support an additional `remoteName` field. If specified, this name will be
+The `tokens` plugins support an additional `broadcastName` field. If specified, this name will be
 used when defining token pools in a multi-party namespace, and it must agree between all members
 of the multi-party system (it is not relevant for non-multi-party namespaces). If unspecified,
 it defaults to the value of `name`.
 
 Config restrictions:
 * all plugin names must be fully unique on this node (any duplicate name is a config error)
-* the `remoteName` for a tokens plugin must be unique from any other tokens plugin
+* the `broadcastName` for a tokens plugin must be unique from any other tokens plugin
 
 **Blockchain Config**
 
@@ -178,15 +178,15 @@ config will still be read as a fallback).
 **Namespace Config**
 
 The `namespaces.predefined` objects will get these new sub-keys:
-* `remoteName` is the namespace name to be sent in plugin calls, if it differs from the
-  locally used name (useful for interacting with multiple shared namespaces of the same name -
-  defaults to the value of `name`)
 * `defaultKey` is a blockchain key used to sign transactions when none is specified (in multi-party mode,
   defaults to the org key)
 * `plugins` is an array of plugin names to be activated for this namespace (defaults to
   all available plugins if omitted)
 * `multiparty.enabled` controls if multi-party mode is enabled (defaults to true if an org key or
   org name is defined on this namespace _or_ in the deprecated `org` section at the root)
+* `multiparty.networkNamespace` is the namespace name to be sent in plugin calls, if it differs from the
+  locally used name (useful for interacting with multiple shared namespaces of the same name -
+  defaults to the namespace `name`)
 * `multiparty.org` is the root org identity for this multi-party namespace (containing `name`,
   `description`, and `key`)
 * `multiparty.node` is the local node identity for this multi-party namespace (containing `name` and
@@ -199,7 +199,7 @@ The `namespaces.predefined` objects will get these new sub-keys:
 
 Config restrictions:
 * `name` must be unique on this node
-* for historical reasons, "ff_system" is a reserved string and cannot be used as a `name` or `remoteName`
+* for historical reasons, "ff_system" is a reserved string and cannot be used as a `name` or `networkNamespace`
 * a `database` plugin is required for every namespace
 * if `multiparty.enabled` is true, plugins _must_ include one each of `blockchain`, `dataexchange`, and
   `sharedstorage`
@@ -368,8 +368,8 @@ If a namespace does not have active plugins of the type(s) needed for a
 particular request, it will reject with HTTP 400.
 
 For plugin calls that include a namespace (data exchange, or blockchain batches in network
-version 1), if the namespace has a `remoteName` configured, it will be substituted instead
-of the local namespace when the data is written out via the plugin.
+version 1), if the namespace has a `networkNamespace` configured, it will be substituted instead
+of the local namespace name when the data is written out via the plugin.
 
 ## Event Routing (Inbound)
 
