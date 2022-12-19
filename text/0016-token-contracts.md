@@ -128,10 +128,10 @@ The more complicated problem is how to deliver the ABI. Possible forms this coul
    Connector can somehow be told which ABI to use for each token pool, _or_ can introspect the contract
    to figure it out (closest to the current behavior - but needs to be something that works for all
    contracts, ie not dependent on ERC165).
-2. FireFly passes an ABI to the token connector when a pool is created. The connector stores
+2. FireFly passes a full ABI to the token connector when a pool is created. The connector stores
    the ABI (would require adding storage, which we've avoided thus far) _or_ passes back a subset of
-   the ABI to be passed back on future token calls.
-3. FireFly passes an ABI to the token connector every time it invokes any token method (simple, but
+   the ABI to be stored by FireFly and passed back again on future calls to the connector.
+3. FireFly passes a full ABI to the token connector every time it invokes any token method (simple, but
    means a very large request body on every HTTP call).
 
 For options 2-3, this probably implies that the user first creates a contract interface on FireFly,
