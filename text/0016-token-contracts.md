@@ -4,7 +4,6 @@
 - FireFly Component: (fill me in with underlined FireFly component, core, orderer/consensus and etc.)
 - FireFly Issue: (leave this empty)
 
-
 # Summary
 [summary]: #summary
 
@@ -19,9 +18,9 @@ very limited in how many variants it can support.
 
 In short, the current token connectors in the FireFly ecosystem cannot handle all
 variants of token contracts that are likely to be encountered in real world projects.
-In addition, adding support for new variants of mint/burn/transfers is currently too
+In addition, adding support for new variants of mint/burn/transfer is currently too
 difficult. Therefore, this proposal aims to provide an easier way to support additional
-variants of token methods.
+variants of common token methods.
 
 In long...
 
@@ -132,7 +131,7 @@ definition along to the blockchain connector.
 # Reference-level explanation
 [reference-level-explanation]: #reference-level-explanation
 
-FireFly's `/tokens/pools` POST gets a new section:
+FireFly's `/tokens/pools` POST API gets a new section:
 ```
 "interface": {
    "id": "",
@@ -141,39 +140,46 @@ FireFly's `/tokens/pools` POST gets a new section:
 }
 ```
 
-Either "id" or "name" and "version" must be specified.
+Either "id" or "name" and "version" must be specified. Either way, the interface
+will be resolved and looked up (and must exist on this FireFly node).
 
-The creation request from FireFly to the token connector may include a new field:
+When an interface is specified, the creation request from FireFly to the token
+connector will now include a new field:
 ```
 "interface": "<id of interface>"
 ```
 
-If "interface" is undefined, the connector will fall back to the original method
-of inspecting/guessing which contract interface is in use. If "interface" is
-defined, it signals that the connector will be provided with interface details
-later. Note: while this could technically be a boolean field, defined/undefined
+When the connector receives a creation request, if "interface" is undefined, it will
+fall back to the original method of inspecting/guessing which contract interface is
+in use. If "interface" is defined, it signals that the connector will be provided with
+interface details later, and can skip any introspection of the contract.
+**Note:** while this could technically be a boolean field, defined/undefined
 feels clearer in case the connector would like to record the interface ID somehow.
 
-The (synchronous or asynchronous) pool creation message from the connector
-will include a new field as well, to specify the interface format this pool understands.
-This will generally be hard-coded in the connector source (similar to how "standard"
-is hardcoded to something like "ERC721"), and it must be either "abi" or "ffi":
+When the pool is created, the connector will respond - either synchronously with a 200
+response, or asynchronously with a websocket event - and this response will include a
+new field as well, to specify the interface format this pool understands:
 ```
 "interfaceFormat": "abi"
 ```
 
-The token connector exposes a new API `/checkinterface`. After successful pool
+**Note:** This will generally be hard-coded in the connector source (similar to how "standard"
+is hardcoded to something like "ERC721"), and it must be either "abi" or "ffi".
+
+The token connector exposes a new POST API `/checkinterface`. After successful pool
 creation, FireFly may invoke this API with a request of the form (dependent on
 which interface format the connector understands):
 ```
 {
+  "format": "abi",
   "abi": [ /* methods in ABI format */ ]
 }
 
 or
 
 {
-   /* FFI definition */
+  "format": "ffi",
+  /* FFI definition */
 }
 ```
 
@@ -189,7 +195,9 @@ The connector responds synchronously with a 200 and a body of the form:
 
 Internally, the connector defines a map of all the possible method signatures it supports for each
 API operation (mint/burn/transfer/approval). Each variant is prioritized and includes a DTO mapping
-function to map parameters into the correct positions.
+function to map parameters into the correct positions. This mapping function can also decide if a
+particular signature is invalid for a particular DTO (ie even if the signature exists, it may not be
+usable for a given combination of inputs).
 
 When asked by FireFly to check an interface, the connector matches the provided interface against
 the signature map and determines all methods that it understands in order to return them to FireFly.
@@ -199,12 +207,12 @@ additional field, where FireFly should pass back the subset of the interface def
 matches the API being invoked:
 ```
 {
-  "interface": { /* subset of interface provided above */ }
+  "interface": { /* subset of interface as provided above */ }
 }
 ```
 
-At the time an operation is invoked and FireFly provides the FFI/ABI for the needed methods,
-the connector references the signature map,  finds the first/best method that can satisfy the
+At the time an operation is invoked and FireFly provides the interface for the needed methods,
+the connector references the signature map, finds the first/best method that can satisfy the
 operation, uses the corresponding mapping function to map the DTO into a list of parameters,
 then passes the method definition and parameter list on to the blockchain connector.
 
@@ -216,13 +224,12 @@ This means it's possible (for instance) for an ERC721 connector to prefer
 [drawbacks]: #drawbacks
 
 This pushes more responsibility for knowledge of the token contract out of the connector and back to
-both FireFly and the application developer. The split of responsibilities is fuzzier, as neither the
-developer, nor FireFly, nor the token connector fully "owns" the responsibility of deciding how and
-which blockchain methods to call for token operations. The decision is a more complicated back-and-forth
-process, with different pieces of knowledge being held by each party.
+both FireFly and the application developer. The split of responsibilities is a bit fuzzier, and there
+is more back-and-forth between app, FireFly, and token connector in order to build up the details on
+a token pool and the methods it exposes.
 
-Assuming we continue to support the original/simpler behavior of token connectors, wherein they perform
-a very simple contract inspection without help from FireFly, this complicates the pool creation flow
+Also, assuming we continue to support the original/simpler behavior of token connectors (wherein they
+perform a contract inspection without help from FireFly), this complicates the pool creation flow
 (which is already one of the more complex flows in FireFly) with even more conditional branches.
 
 # Rationale and alternatives
@@ -231,29 +238,46 @@ a very simple contract inspection without help from FireFly, this complicates th
 The most complicated problem in this proposal is how and when to deliver the interface from FireFly to the
 token connector. Possible alternatives to the current proposal that have been considered:
 
-1. Token connector can be configured with a custom set of ABIs at deploy time (vs a static set).
+1. The token connector can be configured with a custom set of ABIs at deploy time (vs a static set).
    Connector can somehow be told which ABI to use for each token pool, _or_ can introspect the contract
    to figure it out (closest to the current behavior - but needs to be something that works for all
    contracts, ie not dependent on ERC165).
 2. FireFly passes a full ABI to the token connector when a pool is created. The connector stores
    the ABI and references it later as needed (would require adding storage, which we've avoided thus far).
-3. FireFly passes a full ABI to the token connector every time it invokes any token method (simple, but
+3. FireFly passes a full ABI to the token connector every time it invokes any token method (simpler, but
    means a very large request body on every HTTP call).
+
+Given that FireFly already has robust capabilities for parsing and storing ABIs, and given that we
+strongly desire to keep token connectors as stateless microservices, the current proposal seems to be
+a better route than any of these alternatives.
+
+As a more radical alternative, the connector functionality could be entirely collapsed up into a FireFly
+plugin (written in Go and compiled as part of FireFly) - therefore having the FireFly code interact directly
+with a blockchain connector for token operations, rather than having a separate token connector runtime in
+between them. While there is some justification for exploring this route, the primary benefit of having a
+separate token connector remains - that is, having a smaller component that can be customized and replaced
+for new types of tokens, vs. needing to fork and re-compile FireFly to support any new token contract.
 
 # Prior art
 [prior-art]: #prior-art
 
-TBD
+A token connector essentially behaves as a "proxy microservice". It does not own any data, but exposes a
+small, well-defined API and performs transformations on data traveling between FireFly and a blockchain
+connector. This new proposal attempts to stay consistent with that role, by keeping ownership of token pool
+metadata within FireFly, but providing additional ways for connectors to transform and utilize that data.
 
 # Testing
 [testing]: #testing
 
-TBD
+Token connectors will require new unit tests and/or functional tests to exercise the new `/checkinterface`
+API and the new ability to pass interfaces directly into mint/burn/transfer/approval calls.
+
+At least one E2E test should be added to FireFly using a non-standard token contract.
 
 # Dependencies
 [dependencies]: #dependencies
 
-TBD
+No known dependencies
 
 # Unresolved questions
 [unresolved]: #unresolved-questions
@@ -261,6 +285,11 @@ TBD
 Should there be a way to trigger FireFly to call `/checkinterface` again (such as after
 upgrading a token connector) in order to re-initialize the list of methods supported
 for each operation?
+
+Do we need to support custom interfaces for factory contracts/pool creation methods?
+The current proposal deals only with dynamic signatures for mint/burn/transfer/approval,
+whereas pool creation continues to rely on a single hard-coded ABI, usually called
+`create(...)`.
 
 Can we allow a user to inject supported method signatures via API without changing the
 signature map in the connector source code? This would also imply a way for them to specify
