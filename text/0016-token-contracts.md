@@ -14,9 +14,6 @@ the extensions defined by OpenZeppelin, and the extensions defined by FireFly, t
 are quite a few common variants of these methods, and the current connector design is
 very limited in how many variants it can support.
 
-This is a work in progress and right now contains more questions than answers.
-It will be updated as the proposed changes become clearer.
-
 # Motivation
 [motivation]: #motivation
 
@@ -114,82 +111,125 @@ contract being used for a particular token pool.
 
 A user of FireFly may first create a contract interface (FFI) for their token
 contract. When creating a token pool, the interface may be specified (by ID or
-by name and version), and FireFly will include the full FFI in the pool creation
-request to the connector.
+by name and version), and FireFly will include details on the interface during
+the pool creation flow with the connector.
 
-Token connectors that support this flow will inspect the FFI, and will return a
-body to FireFly specifying the `methodPath` of any methods it may want to utilize
-for the 4 core token functionalities: `mint`, `burn`, `transfer`, and `approval`.
-It should also specify its native format for methods - either `ffi` or `abi`.
+A token connector supporting this flow will inspect the interface, and will return
+a body to FireFly specifying any methods it may want to utilize
+for the 4 core token APIs: `mint`, `burn`, `transfer`, and `approval`.
 
-FireFly will store this listing of `methodPath` values on the token pool info, and
-will include them when broadcasting the pool definition to other nodes.
+FireFly will store this listing of methods on the token pool, and
+will include it when broadcasting the pool definition to other nodes.
 
 When FireFly is asked to perform a `mint`, `burn`, `transfer`, or `approval` in
-this pool, it will look up the relevant methods from the FFI, convert them to the
-connector's requested format (`ffi` or `abi`), and include those method definitions
-in the request.
+this pool, it will look up the relevant methods and include them in the request
+to the connector.
 
 Thus the connector should have a useful subset of the interface methods at its
 disposal for every operation. It can choose which one to call, and pass the method
 definition along to the blockchain connector.
-
-See Unresolved questions below for items that need additional consideration.
 
 # Reference-level explanation
 [reference-level-explanation]: #reference-level-explanation
 
 FireFly's `/tokens/pools` POST gets a new section:
 ```
-interface {
-   id: "",
-   name: "",
-   version: "",
+"interface": {
+   "id": "",
+   "name": "",
+   "version": "",
 }
 ```
 
-The creation request from FireFly to the token connector gets a new section:
+Either "id" or "name" and "version" must be specified.
+
+The creation request from FireFly to the token connector may include a new field:
 ```
-interface: { /*full FFI spec*/ }
+"interface": "<id of interface>"
 ```
 
-The 200 or 202 response from the connector gets a new section as well:
+If "interface" is undefined, the connector will fall back to the original method
+of inspecting/guessing which contract interface is in use. If "interface" is
+defined, it signals that the connector will be provided with interface details
+later. Note: while this could technically be a boolean field, defined/undefined
+feels clearer in case the connector would like to record the interface ID somehow.
+
+The (synchronous or asynchronous) pool creation message from the connector
+will include a new field as well, to specify the interface format this pool understands.
+This will generally be hard-coded in the connector source (similar to how "standard"
+is hardcoded to something like "ERC721"), and it must be either "abi" or "ffi":
 ```
-interface: {
-   format: "abi",
-   methods: {
-      approve: ["approveWithData", "setApprovalForAllWithData"],
-      burn: ["burnWithData"],
-      mint: ["mintWithData"],
-      transfer: ["transferWithData"],
-   }
+"interfaceFormat": "abi"
+```
+
+The token connector exposes a new API `/checkinterface`. After successful pool
+creation, FireFly may invoke this API with a request of the form (dependent on
+which interface format the connector understands):
+```
+{
+  "abi": [ /* methods in ABI format */ ]
+}
+
+or
+
+{
+   /* FFI definition */
 }
 ```
 
-The connector defines a map of all the possible method signatures it supports for each
-operation (approve/burn/mint/transfer). During pool creation, it scans the FFI and determines
-all methods that it understands  in order to return them to FireFly.
+The connector responds synchronously with a 200 and a body of the form:
+```
+{
+  "mint": { /* subset of interface */ },
+  "burn": { /* subset of interface */ },
+  "transfer": { /* subset of interface */ },
+  "approval": { /* subset of interface */ }
+}
+```
+
+Internally, the connector defines a map of all the possible method signatures it supports for each
+API operation (mint/burn/transfer/approval). Each variant is prioritized and includes a DTO mapping
+function to map parameters into the correct positions.
+
+When asked by FireFly to check an interface, the connector matches the provided interface against
+the signature map and determines all methods that it understands in order to return them to FireFly.
+
+Each of the token connector's APIs `mint`, `burn`, `transfer`, and `approval` may now receive an
+additional field, where FireFly should pass back the subset of the interface definition that
+matches the API being invoked:
+```
+{
+  "interface": { /* subset of interface provided above */ }
+}
+```
 
 At the time an operation is invoked and FireFly provides the FFI/ABI for the needed methods,
-the connector references the same map, which also defines a priority order and a mapping
-function. It finds the first/best method that can satisfy the operation, and uses the corresponding
-mapping function to map the DTO into a list of parameters.
+the connector references the signature map,  finds the first/best method that can satisfy the
+operation, uses the corresponding mapping function to map the DTO into a list of parameters,
+then passes the method definition and parameter list on to the blockchain connector.
 
-This means it's easy (for instance) for an ERC721 connector to prefer
-`mintWithData(address to, uint256 tokenId, bytes calldata data)`, then
-`function safeMint(address to, uint256 tokenId)`, then `function mint(address to, uint256 tokenId)`,
-etc. The first method supported on a given contract will be invoked.
+This means it's possible (for instance) for an ERC721 connector to prefer
+`mintWithData(address, uint256, bytes)`, then `safeMint(address, uint256)`, then
+`mint(address, uint256)`, etc. The first method supported on a given contract will be invoked.
 
 # Drawbacks
 [drawbacks]: #drawbacks
 
-TBD
+This pushes more responsibility for knowledge of the token contract out of the connector and back to
+both FireFly and the application developer. The split of responsibilities is fuzzier, as neither the
+developer, nor FireFly, nor the token connector fully "owns" the responsibility of deciding how and
+which blockchain methods to call for token operations. The decision is a more complicated back-and-forth
+process, with different pieces of knowledge being held by each party.
+
+Assuming we continue to support the original/simpler behavior of token connectors, wherein they perform
+a very simple contract inspection without help from FireFly, this complicates the pool creation flow
+(which is already one of the more complex flows in FireFly) with even more conditional branches.
 
 # Rationale and alternatives
 [alternatives]: #alternatives
 
-The only complicated problem in this proposal is how and when to deliver the ABI from FireFly to the
-token connector. Possible alternatives to the current proposal:
+The most complicated problem in this proposal is how and when to deliver the interface from FireFly to the
+token connector. Possible alternatives to the current proposal that have been considered:
 
 1. Token connector can be configured with a custom set of ABIs at deploy time (vs a static set).
    Connector can somehow be told which ABI to use for each token pool, _or_ can introspect the contract
@@ -218,10 +258,13 @@ TBD
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
-* Some contract methods are called by the connector outside of a direct invocation from FireFly.
-  Most notably, `tokenURI()` is invoked by the event listener in order to look up and
-  attach URIs to non-fungible token transfer events before forwarding them to FireFly. Need to decide
-  how this flow should work if the listener does not have the FFI/ABI in hand.
-* FFI inspection is a one-time process at pool creation time. If a connector is updated with
-  support for additional method signatures after a pool is already created, it would need a
-  new flow to re-inspect the FFI.
+Should there be a way to trigger FireFly to call `/checkinterface` again (such as after
+upgrading a token connector) in order to re-initialize the list of methods supported
+for each operation?
+
+Can we allow a user to inject supported method signatures via API without changing the
+signature map in the connector source code? This would also imply a way for them to specify
+that one of the parameters can be a "data" parameter open for FireFly to use in passing
+arbitrary data. While this would allow for maximum flexibility, it's not possible within
+the framework described here (mainly due to the need for a DTO mapping function that
+dynamically determines if a particular method variant is able to handle a particular DTO).
