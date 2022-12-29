@@ -8,7 +8,7 @@
 [summary]: #summary
 
 FireFly token connectors need a more flexible way to support additional variants
-of methods for mint, burn, transfer, and approve. Between the base ERC token standards,
+of methods for mint, burn, transfer, and approval. Between the base ERC token standards,
 the extensions defined by OpenZeppelin, and the extensions defined by FireFly, there
 are quite a few common variants of these methods, and the current connector design is
 very limited in how many variants it can support.
@@ -30,12 +30,15 @@ The former supports ERC20 for fungible tokens and ERC721 for non-fungible tokens
 while the latter supports ERC1155 for both.
 
 FireFly requires a token connector to support 4 basic functions - mint, burn, transfer,
-and approve. All of these token standards include an opinionated definition for
-the "transfer" and "approve" family of methods, but do not include "mint" or "burn".
+and approval. All of these token standards include an opinionated definition for
+the "transfer" and "approval" family of methods, but do not include "mint" or "burn".
 However, [OpenZeppelin](http://openzeppelin.com) has defined well-adopted extensions
 for "mint" and "burn" on top of each of them. Although the current connectors
 support all the required methods in some form, they're somewhat inconsistent about
 following the OpenZeppelin conventions, or even (in some cases) the base standard.
+FireFly has also defined a convention for including an arbitrary data parameter in each
+method signature, which allows additional context to be recorded in the blockchain
+transaction (such as FireFly transaction IDs and hashes of off-chain messages).
 
 The token connector TypeScript code requires ABI knowledge in order to make the proper
 blockchain calls. Currently, each connector understands a few ABI variants of each method,
@@ -100,7 +103,9 @@ and are not understood or utilized by the current connectors:
 Thus, to provide meaningful token functionality, all use cases currently require designing
 a smart contract that 1) uses the signatures FireFly understands, and 2) includes ERC165 support.
 Ideally, a contract written solely using methods from the base token standard and the OpenZeppelin
-wizard would be usable with no special modifications at all.
+wizard would be usable with no special modifications at all - particularly when using FireFly
+against a pre-existing contract that can't be replaced/modified to fit FireFly's current
+expectations.
 
 # Guide-level explanation
 [guide-level-explanation]: #guide-level-explanation
