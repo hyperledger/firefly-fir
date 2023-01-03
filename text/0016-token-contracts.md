@@ -149,18 +149,8 @@ FireFly's `/tokens/pools` POST API gets a new section:
 Either "id" or "name" and "version" must be specified. Either way, the interface
 will be resolved and looked up (and must exist on this FireFly node).
 
-When an interface is specified, the creation request from FireFly to the token
-connector will now include a new field:
-```
-"interface": "<id of interface>"
-```
-
-When the connector receives a creation request, if "interface" is undefined, it will
-fall back to the original method of inspecting/guessing which contract interface is
-in use. If "interface" is defined, it signals that the connector will be provided with
-interface details later, and can skip any introspection of the contract.
-**Note:** while this could technically be a boolean field, defined/undefined
-feels clearer in case the connector would like to record the interface ID somehow.
+This information is stored by the creating FireFly node, but as of now there is no
+difference in the initial pool creation request to the connector.
 
 When the pool is created, the connector will respond - either synchronously with a 200
 response, or asynchronously with a websocket event - and this response will include a
@@ -293,6 +283,14 @@ No known dependencies
 Should there be a way to trigger FireFly to call `/checkinterface` again (such as after
 upgrading a token connector) in order to re-initialize the list of methods supported
 for each operation?
+
+When the pool is created, should there be a way to disable the ERC165 queries that
+current connectors use to guess at the contract ABI? They're essentially harmless,
+but a small optimization would be to avoid these queries in the case we expect the ABI
+to be passed in later. This could involve passing a new "interface" param during pool
+creation, but the asynchronous/factory case is problematic, since no state is stored
+between the creation action and the creation event (so the event listener would not
+know to avoid the queries).
 
 Do we need to support custom interfaces for factory contracts/pool creation methods?
 The current proposal deals only with dynamic signatures for mint/burn/transfer/approval,
