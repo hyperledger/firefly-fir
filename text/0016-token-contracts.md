@@ -177,6 +177,7 @@ creation, FireFly may invoke this API with a request of the form (dependent on
 which interface format the connector understands):
 ```
 {
+  "poolLocator": "<pool locator>",
   "format": "abi",
   "abi": [ /* methods in ABI format */ ]
 }
@@ -184,6 +185,7 @@ which interface format the connector understands):
 or
 
 {
+  "poolLocator": "<pool locator>",
   "format": "ffi",
   /* FFI definition */
 }
