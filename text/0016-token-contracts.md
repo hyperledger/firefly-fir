@@ -163,31 +163,24 @@ new field as well, to specify the interface format this pool understands:
 is hard-coded to something like "ERC721"), and it must be either "abi" or "ffi".
 
 The token connector exposes a new POST API `/checkinterface`. After successful pool
-creation, FireFly may invoke this API with a request of the form (dependent on
-which interface format the connector understands):
+creation, FireFly may invoke this API with a request of the form (passing all of the available
+contract methods in the format requested by the connector):
 ```
 {
   "poolLocator": "<pool locator>",
-  "format": "abi",
-  "abi": [ /* methods in ABI format */ ]
-}
-
-or
-
-{
-  "poolLocator": "<pool locator>",
-  "format": "ffi",
-  /* FFI definition */
+  "format": "<abi or ffi>",
+  "methods": [ /* methods in ABI or FFI format */ ]
 }
 ```
 
-The connector responds synchronously with a 200 and a body of the form:
+The connector responds synchronously with a 200 and a body of the form (returning a subset
+of the methods for each operation type):
 ```
 {
-  "mint": { /* subset of interface */ },
-  "burn": { /* subset of interface */ },
-  "transfer": { /* subset of interface */ },
-  "approval": { /* subset of interface */ }
+  "mint": { format: "<abi or ffi>", methods: [ ... ] },
+  "burn": { format: "<abi or ffi>", methods: [ ... ] },
+  "transfer": { format: "<abi or ffi>", methods: [ ... ] },
+  "approval": { format: "<abi or ffi>", methods: [ ... ] }
 }
 ```
 
