@@ -20,12 +20,13 @@ have been received.
 FireFly currently provides the ability to "pin" an off-chain message to the blockchain by writing a hash
 and ordering context into a specific `pinBatch` transaction on the FireFly multiparty contract.
 Reference implementations of this contract are provided for Ethereum and Fabric, and it does nothing
-on-chain other than emitting a "BatchPin" event.
+on-chain other than emitting a `BatchPin` event which FireFly understands how to process.
 
 Token operations such as transfers and approvals can also be associated with an off-chain message, by
 writing a hash of the message into an extra parameter during the on-chain token transaction. In this case,
-a separate "pinBatch" transaction is triggered by FireFly after the token operation succeeds, so that the
-event from that transaction can be used for sequencing purposes.
+a separate `pinBatch` transaction is triggered by FireFly after the token operation succeeds, so that the
+event from that transaction can be used for sequencing purposes. This allows FireFly to aggregate the
+token event and the message (although it ends up requiring two separate blockchain transactions).
 
 While these specific cases are helpful in binding certain on- and off-chain events, more advanced
 blockchain use cases demand a way to bind an off-chain payload to _any_ arbitrary blockchain transaction.
@@ -51,18 +52,23 @@ defines the custom blockchain logic for a given application).
 The application contract must fulfill certain requirements in order to leverage the new functionality.
 
 First, it must know the on-chain location of the **FireFly Multiparty Contract**. How this is achieved
-is out of scope for this FIR. It may be hard-coded in the application contract at deployment time, or it
+is out of scope for this FIR - it may be hard-coded in the application contract at deployment time, or it
 may be set by invoking a method on the application contract. An application may leverage the fact that
 this location is available by querying the FireFly `/status` API (under `multiparty.contract.location`
-as of FireFly v1.1.0). It must also consider how to update this location if a multiparty "network action"
-is used to migrate the network onto a new FireFly multiparty contract.
+as of FireFly v1.1.0), and the application may leverage FireFly's `/invoke` APIs to invoke a method on
+the application contract which sets the FireFly contract location. The application must also consider
+how to update this location if a multiparty "network action" is used to migrate the network onto a new
+FireFly multiparty contract.
 
 Second, any external method of the contract that will be used for associating with off-chain payloads
 must conform to [ERC5750](https://eips.ethereum.org/EIPS/eip-5750) - that is, the method signature must
 end with a parameter for passing arbitrary unstructured data (in the case of Ethereum, the parameter
-should be of type `bytes`, and for Fabric, a `string`). As a final step before returning, the method should
-invoke the new `pinBatchData` method of the **FireFly Multiparty Contract** and pass along the data
-payload that was received in the final method parameter.
+should be of type `bytes`, and for Fabric, a `string`).
+
+Finally, the method(s) in question must invoke the new `pinBatchData` method of the
+**FireFly Multiparty Contract** and pass along the data payload that was received in the final method
+parameter. This should always be done as a final step before returning, after the method has performed
+its own logic.
 
 ## FireFly Multiparty Contract
 
@@ -75,6 +81,8 @@ method.
 
 In the case of Ethereum, emission of the `BatchPin` event will be altered to emit `tx.origin` as the
 `author`, instead of using `msg.sender` as it does currently.
+
+TODO: add details around security concerns of `tx.origin` and recommended mitigations
 
 ## FireFly Core
 
