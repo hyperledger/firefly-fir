@@ -19,8 +19,10 @@ have been received.
 
 FireFly currently provides the ability to "pin" an off-chain message to the blockchain by writing a hash
 and ordering context into a specific `pinBatch` transaction on the FireFly multiparty contract.
-Reference implementations of this contract are provided for Ethereum and Fabric, and it does nothing
-on-chain other than emitting a `BatchPin` event which FireFly understands how to process.
+Reference implementations of this contract are provided for
+[Ethereum](https://github.com/hyperledger/firefly/tree/main/smart_contracts/ethereum/solidity_firefly) and
+[Fabric](https://github.com/hyperledger/firefly/tree/main/smart_contracts/fabric/firefly-go), and it does
+nothing on-chain other than emitting a `BatchPin` event which FireFly understands how to process.
 
 Token operations such as transfers and approvals can also be associated with an off-chain message, by
 writing a hash of the message into an extra parameter during the on-chain token transaction. In this case,
