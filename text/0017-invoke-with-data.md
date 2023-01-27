@@ -21,8 +21,11 @@ FireFly currently provides the ability to "pin" an off-chain message to the bloc
 and ordering context into a specific `pinBatch` transaction on the FireFly multiparty contract.
 Reference implementations of this contract are provided for
 [Ethereum](https://github.com/hyperledger/firefly/tree/main/smart_contracts/ethereum/solidity_firefly) and
-[Fabric](https://github.com/hyperledger/firefly/tree/main/smart_contracts/fabric/firefly-go), and it does
-nothing on-chain other than emitting a `BatchPin` event which FireFly understands how to process.
+[Fabric](https://github.com/hyperledger/firefly/tree/main/smart_contracts/fabric/firefly-go). The
+contract simply emits a `BatchPin` event, and FireFly will correlate the availability of the off-chain
+data (received via IPFS or private send) with the arrival of the `BatchPin` event, such that
+subsequent processing on the same topic is not triggered until _both_ the off-chain data and the on-chain
+event have been received.
 
 Token operations such as transfers and approvals can also be associated with an off-chain message, by
 writing a hash of the message into an extra parameter during the on-chain token transaction. In this case,
@@ -63,14 +66,16 @@ how to update this location if a multiparty "network action" is used to migrate 
 FireFly multiparty contract.
 
 Second, any external method of the contract that will be used for associating with off-chain payloads
-must conform to [ERC5750](https://eips.ethereum.org/EIPS/eip-5750) - that is, the method signature must
-end with a parameter for passing arbitrary unstructured data (in the case of Ethereum, the parameter
-should be of type `bytes`, and for Fabric, a `string`).
+must provide an extra parameter for this purpose. Conformance to
+[ERC5750](https://eips.ethereum.org/EIPS/eip-5750) is adopted as the preferred route (although this is
+an Ethereum token standard, an appropriate interpretation of this standard can be made for non-EVM
+chains as well). For Ethereum and Fabric (the two blockchain connectors supported at this time), this
+means the method signature should end with a `bytes` or `string` parameter, respectively.
 
 Finally, the method(s) in question must invoke the new `pinBatchData` method of the
 **FireFly Multiparty Contract** and pass along the data payload that was received in the final method
-parameter. This should always be done as a final step before returning, after the method has performed
-its own logic.
+parameter. It is generally good practice to trigger this as a final step before returning, after the
+method has performed its own logic.
 
 ## FireFly Multiparty Contract
 
@@ -92,18 +97,22 @@ The request body for all blockchain `/invoke` methods can now include a `message
 to the request bodies for token transfers). When this is present, FireFly will prepare and seal a message
 and return the ID as part of the 202 response (similar to what is done currently for token transfers).
 
-The FireFly message will be marked (either with a new message `type` or some new field TBD) to indicate
-that it must correlate with a contract invoke. This marking will also signal the batch assembler to treat
-this message differently and to assemble it into a special "batch of one" rather than a normal batch.
-This implies that batching of messages in FireFLy is not directly supported in this use case (although
-the user could opt to batch their own data before passing it to FireFly).
+FireFly will also generate a transaction with a new type of `contract_invoke_pin`. The ID of this
+transaction will be stored on the message object (but not hashed as part of the message header).
+When processing messages of this type, the batch assembler will ensure that they are _not_ batched,
+but that the message is assembled into a special "batch of one". This implies that batching of messages
+in FireFly is not directly supported in this use case (although the user could opt to batch their own
+data before passing it to FireFly). The batch will also inherit the transaction type and ID from the
+message, rather than generating a new transaction.
 
 The invoke operation will not actually be sent to the blockchain until the batch is prepared and
 sealed. When it is ready, the 4 "batch pin" arguments (`uuids, batchHash, payloadRef, contexts`) will
 be passed to the blockchain plugin along with the rest of the inputs for the invoke. The plugin will
-inspect the method ABI to verify ERC5750 compliance, then will pack the 4 "batch pin" arguments in a
-suitable manner (ABI-encoded `bytes` for Ethereum, or a JSON-encoded `string` for Fabric) and supply
-them as the final argument to the method call.
+inspect the method schema to verify it can be used (ie checking that it complies with ERC5750 or some
+interpretation appropriate to the blockchain in question) - and fail the request if there are any
+problems. Then it will pack the 4 "batch pin" arguments in a suitable manner (ABI-encoded `bytes`
+for Ethereum, or a JSON-encoded `string` for Fabric) and supply them as the final argument to the
+method call.
 
 # Drawbacks
 
