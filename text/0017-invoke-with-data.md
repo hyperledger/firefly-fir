@@ -52,45 +52,6 @@ There are 3 components that must interact to enable this feature: **FireFly Core
 **FireFly Multiparty Contract** (which provides `pinBatch`), and the **Application Contract** (which
 defines the custom blockchain logic for a given application).
 
-## Application Contract
-
-The application contract must fulfill certain requirements in order to leverage the new functionality.
-
-First, it must know the on-chain location of the **FireFly Multiparty Contract**. How this is achieved
-is out of scope for this FIR - it may be hard-coded in the application contract at deployment time, or it
-may be set by invoking a method on the application contract. An application may leverage the fact that
-this location is available by querying the FireFly `/status` API (under `multiparty.contract.location`
-as of FireFly v1.1.0), and the application may leverage FireFly's `/invoke` APIs to invoke a method on
-the application contract which sets the FireFly contract location. The application must also consider
-how to update this location if a multiparty "network action" is used to migrate the network onto a new
-FireFly multiparty contract.
-
-Second, any external method of the contract that will be used for associating with off-chain payloads
-must provide an extra parameter for this purpose. Conformance to
-[ERC5750](https://eips.ethereum.org/EIPS/eip-5750) is adopted as the preferred route (although this is
-an Ethereum token standard, an appropriate interpretation of this standard can be made for non-EVM
-chains as well). For Ethereum and Fabric (the two blockchain connectors supported at this time), this
-means the method signature should end with a `bytes` or `string` parameter, respectively.
-
-Finally, the method(s) in question must invoke the new `pinBatchData` method of the
-**FireFly Multiparty Contract** and pass along the data payload that was received in the final method
-parameter. It is generally good practice to trigger this as a final step before returning, after the
-method has performed its own logic.
-
-## FireFly Multiparty Contract
-
-The multiparty contract is enhanced as part of this proposal, with a new external `pinBatchData` method.
-This method takes a single packed "data" parameter. Specifically, this "data" parameter will be
-expected to be an ABI-encoded `bytes` parameter for Ethereum, or a JSON-encoded `string` for Fabric.
-The method will unpack this encoded value into a `struct` of 4 arguments (representing
-`uuids, batchHash, payloadRef, contexts`), and then will pass those arguments to the existing `pinBatch`
-method.
-
-In the case of Ethereum, emission of the `BatchPin` event will be altered to emit `tx.origin` as the
-`author`, instead of using `msg.sender` as it does currently.
-
-TODO: add details around security concerns of `tx.origin` and recommended mitigations
-
 ## FireFly Core
 
 The request body for all blockchain `/invoke` methods can now include a `message: {}` section (similar
@@ -106,13 +67,71 @@ data before passing it to FireFly). The batch will also inherit the transaction 
 message, rather than generating a new transaction.
 
 The invoke operation will not actually be sent to the blockchain until the batch is prepared and
-sealed. When it is ready, the 4 "batch pin" arguments (`uuids, batchHash, payloadRef, contexts`) will
+sealed. When it is ready, the "batch pin" arguments (`uuids, batchHash, payloadRef, contexts`) will
 be passed to the blockchain plugin along with the rest of the inputs for the invoke. The plugin will
 inspect the method schema to verify it can be used (ie checking that it complies with ERC5750 or some
 interpretation appropriate to the blockchain in question) - and fail the request if there are any
-problems. Then it will pack the 4 "batch pin" arguments in a suitable manner (ABI-encoded `bytes`
-for Ethereum, or a JSON-encoded `string` for Fabric) and supply them as the final argument to the
-method call.
+problems. Then it will pack the "batch pin" arguments in a suitable manner (i.e. ABI encoding for
+Ethereum, or JSON encoding for Fabric) and supply them as the final argument to the method call.
+
+## FireFly Multiparty Contract
+
+For _Ethereum_:
+
+The multiparty contract is enhanced with a new external `pinBatchData` method.
+This method takes a single packed "data" parameter of type `bytes`. This will be able to receive
+an ABI-encoded `bytes` value that will unpack into a `struct` of 4 arguments (representing
+`uuids, batchHash, payloadRef, contexts`). The method will emit a `BatchPin` event similar to the
+existing `pinBatch` method.
+
+Emission of the `BatchPin` event will also be altered to emit `tx.origin` as the
+`author`, instead of using `msg.sender` as it does currently.
+
+TODO: add details around security concerns of `tx.origin` and recommended mitigations
+
+For _Fabric_:
+
+No changes are required to the multiparty contract, since it is not used when a batch pin is
+performed by a custom contract.
+
+## Application Contract
+
+For _all blockchains_:
+
+Any external method of the contract that will be used for associating with off-chain payloads
+must provide an extra parameter for passing the encoded batch data. This must be the last parameter
+in the method signature. This convention is chosen partly to align with the Ethereum
+[ERC5750](https://eips.ethereum.org/EIPS/eip-5750) standard, but should serve as a straightforward
+guideline for nearly any blockchain.
+
+This method must emit a `BatchPin` event that can be received and parsed by FireFly. How
+this event is emitted will differ for each blockchain.
+
+For _Ethereum_:
+
+- The method in question will receive packed "batch pin" data in its last method parameter (in the
+  form of ABI-encoded `bytes`). The method must invoke the new `pinBatchData` method of the
+  **FireFly Multiparty Contract** and pass along this data payload. It is generally good practice to
+  trigger this as a final step before returning, after the method has performed its own logic.
+- This also implies that the contract must know the on-chain location of the
+  **FireFly Multiparty Contract**. How this is achieved is out of scope for this FIR - it may be hard-coded
+  in the application contract at deployment time, or it may be set by invoking a method on the application
+  contract. An application may leverage the fact that this location is available by querying the FireFly
+  `/status` API (under `multiparty.contract.location` as of FireFly v1.1.0), and the application may
+  leverage FireFly's `/invoke` APIs to invoke a method on the application contract which sets the FireFly
+  contract location. The application must also consider how to update this location if a multiparty
+  "network action" is used to migrate the network onto a new FireFly multiparty contract.
+
+For _Fabric_:
+
+- The method in question will received packed "batch pin" data in its last method parameter (in the
+  form of a JSON-encoded `string`). The method must unpack this argument into a JSON object.
+- The contract must directly set a `BatchPin` event in the same format that is used by the
+  **FireFly Multiparty Contract**.
+- FireFly must also be configured to listen for `BatchPin` events from _any_ chaincode on the channel
+  (not just the specific "firefly" chaincode). This is done by enabling a new
+  `namespaces.predefined[].multiparty.contract[].options.globalListener` flag in the FireFly config.
+  Note that this must be enabled before starting FireFly for the first time in order to take effect.
 
 # Drawbacks
 
