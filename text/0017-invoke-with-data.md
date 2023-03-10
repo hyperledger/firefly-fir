@@ -42,7 +42,31 @@ a set of best practices for compliant smart contracts.
 
 [guide-level-explanation]: #guide-level-explanation
 
-TBD
+In cases where your application requires an off-chain payload to be delivered and synchronized
+with a custom piece of on-chain logic, you can include a message
+payload on any of FireFly's `/invoke` APIs. Example payload:
+
+```
+{
+  "interface": "32adcf84-8737-4793-9871-070e456c8cda",
+  "location": {
+    "address": "0xc0ffee254729296a45a3885639AC7E10F9d54979"
+  },
+  "methodPath": "doSomething",
+  "input": {
+    "value": 42
+  },
+  "message": {
+    "data": [{ "value": "test-message" }]
+  }
+}
+```
+
+Assuming the contract in question and the configuration of the FireFly node meet specific requirements
+(laid out in the rest of this document), this will deliver the payload off-chain, and will invoke the
+contract and include a hash derived from the supplied message. Recipients of the message will get a
+`message_confirmed` event (guaranteed to be ordered on the topic like all other FireFly messages)
+when both the off-chain payload and the blockchain transaction have been received.
 
 # Reference-level explanation
 
@@ -143,13 +167,23 @@ the data is unpacked and used to emit this event will differ for each blockchain
 
 [drawbacks]: #drawbacks
 
-TODO
+As an advanced feature that requires very specific requirements to be met both on- and
+off-chain, this feature will have a higher barrier to usage vs. many other FireFly features.
+The primary drawback will likely be around the difficulty of clearly documenting and
+guiding users in how to understand and use the feature, and how to avoid or recover
+from errors.
 
 # Rationale and alternatives
 
 [alternatives]: #alternatives
 
-TODO
+Multiple options were considered for how to structure the invocations and events in this flow,
+as illustrated below. Different starting points were chosen for Ethereum and Fabric based on
+collective input from maintainers on what makes sense for each technology and developer
+community, but the final proposal laid out in this document seeks to make as many points
+common between the two as is reasonably possible.
+
+![Options considered for FIR-17](../images/0017-options.png)
 
 # Prior art
 
@@ -161,16 +195,27 @@ TODO
 
 [testing]: #testing
 
-TODO
+Will require new E2E tests for both Ethereum and Fabric, to test combinations of broadcast/private
+messages pinned to a custom contract call.
+
+Should also undergo significant manual testing to identify error scenarios and how they can be
+handled. This change may introduce significantly higher risk of message processing becoming
+slowed or stalled due to problems with the user's custom blockchain logic.
 
 # Dependencies
 
 [dependencies]: #dependencies
 
-TODO
+No known dependencies
 
 # Unresolved questions
 
 [unresolved]: #unresolved-questions
 
-TODO
+- Should the implementation on Fabric include a way to "embed" the `BatchPin` event inside another
+  "wrapper" event? Since Fabric restricts a transaction to emitting one event, the current proposal
+  restricts the user from emitting any custom events alongside `BatchPin`.
+- Is it still correct to use the existing batch processor logic, even though these messages will be
+  a "batch of one"?
+- Do we need different cancel/retry semantics around these operations vs. existing ones?
+  How is error recovery handled at each stage of the flow?
