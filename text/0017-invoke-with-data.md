@@ -160,7 +160,7 @@ the data is unpacked and used to emit this event will differ for each blockchain
   **FireFly Multiparty Contract**.
 - FireFly must also be configured to listen for `BatchPin` events from _any_ chaincode on the channel
   (not just the specific "firefly" chaincode). This is done by enabling a new
-  `namespaces.predefined[].multiparty.contract[].options.globalListener` flag in the FireFly config.
+  `namespaces.predefined[].multiparty.contract[].options.customPinSupport` flag in the FireFly config.
   Note that this must be enabled before starting FireFly for the first time in order to take effect.
 
 # Drawbacks
