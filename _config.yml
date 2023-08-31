@@ -1,2 +1,4 @@
 remote_theme: pmarsceill/just-the-docs
 theme: jekyll-theme-cayman
+ga_tracking: GTM-T6J7RQ
+ga_tracking_anonymize_ip: true
